@@ -2,12 +2,16 @@
 # VSCode
 .vscode/
 
+# data input
 data/*
-*.edf
-!data/.gitkeep
+raw/itpc-30event-good/.gitkeep
 
+# generated code
 __pycache__/
 *.py[cod]
+
+# generated output
+results
 
 # local test
 test*
