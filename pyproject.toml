@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adapt-eeg"
+version = "0.1.0"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "mne",
+    "numpy",
+    "pandas",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.optional-dependencies]
+dev = [
+    "jupyterlab",
+]

@@ -1,0 +1,13 @@
+## IDE
+# VSCode
+.vscode/
+
+data/*
+*.edf
+!data/.gitkeep
+
+__pycache__/
+*.py[cod]
+
+# local test
+test*
