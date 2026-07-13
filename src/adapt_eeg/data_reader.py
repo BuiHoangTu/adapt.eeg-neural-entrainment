@@ -5,11 +5,12 @@ from enum import Enum
 import logging
 import re
 from pathlib import Path
+from typing import Any
 
 import mne
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from scipy import stats
 
 from adapt_eeg.constants import (
@@ -46,7 +47,7 @@ class LanguageUnderstanding(str, Enum):
         return cls.NO
 
 
-class Sample(BaseModel):
+class SampleMetadata(BaseModel):
     participant: int
     line: int
     set_path: str
@@ -56,7 +57,7 @@ class Sample(BaseModel):
 
 
 def build_metadata(data_root: Path):
-    samples: list[Sample] = []
+    samples: list[SampleMetadata] = []
     for set_path in data_root.glob("line*/*.set"):
         match = FILE_RE.search(set_path.name)
         if not match:
@@ -68,7 +69,7 @@ def build_metadata(data_root: Path):
         fdt_path = set_path.with_suffix(".fdt")
 
         samples.append(
-            Sample(
+            SampleMetadata(
                 participant=participant,
                 line=line,
                 set_path=str(set_path),
@@ -79,14 +80,10 @@ def build_metadata(data_root: Path):
         )
     return samples
 
-def read_sample(sample: Sample):
-    """Read a single sample from disk and return an MNE Epochs object."""
-    return mne.read_epochs_eeglab(sample.set_path, verbose="ERROR")
-    
 def merge_data(
     epochs: mne.Epochs,
-    min_shift: int = 18,
-    max_shift: int = 23,
+    min_shift: int = 15,
+    max_shift: int = 40,
     absolute_tolerance: float = 1e-12,
     normalized_tolerance: float = 1e-5,
     verbose: bool = False,
@@ -376,6 +373,29 @@ def merge_data(
         )
 
     return merged_epochs, diagnostics
+
+
+class Sample(SampleMetadata, BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    data: Any
+
+
+def read_sample(sample: SampleMetadata):
+    """Read a single sample from disk and return an MNE Epochs object."""
+    try:
+        epochs = mne.read_epochs_eeglab(sample.set_path, verbose="ERROR")
+        merged_epochs, _ = merge_data(epochs, verbose=False) # type: ignore
+        return Sample(
+            **sample.model_dump(),
+            data=merged_epochs,
+        )
+    except Exception as _:
+        raw = mne.io.read_raw_eeglab(sample.set_path, verbose="ERROR")
+        return Sample(
+            **sample.model_dump(),
+            data=raw,
+        )
 
 
 def fourier_itpc(
