@@ -6,9 +6,10 @@
 data/*
 raw/itpc-30event-good/.gitkeep
 
-# generated code
+# python generated
 __pycache__/
 *.py[cod]
+*.egg-info/
 
 # generated output
 results
