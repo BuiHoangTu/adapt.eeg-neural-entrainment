@@ -430,8 +430,8 @@ def fourier_itpc(
     return out
 
 
-def analyze_file(row: pd.Series) -> tuple[list[dict], list[dict]]:
-    epochs = mne.read_epochs_eeglab(row.set_path, verbose="ERROR")
+def analyze_sample(metadata: SampleMetadata) -> tuple[list[dict], list[dict]]:
+    epochs = mne.read_epochs_eeglab(metadata.set_path, verbose="ERROR")
     data = epochs.get_data(copy=True)
     duration = float(epochs.times[-1] - epochs.times[0] + 1.0 / epochs.info["sfreq"])
     cycles = {
@@ -446,7 +446,7 @@ def analyze_file(row: pd.Series) -> tuple[list[dict], list[dict]]:
         short_window = cycles[frequency_name] < 1.0
         file_rows.append(
             {
-                **row.to_dict(),
+                **metadata.model_dump(),
                 "frequency_name": frequency_name,
                 "frequency_hz": freq,
                 "n_epochs": len(epochs),
@@ -466,10 +466,10 @@ def analyze_file(row: pd.Series) -> tuple[list[dict], list[dict]]:
         for ch_name, value in zip(epochs.ch_names, channel_values, strict=True):
             channel_rows.append(
                 {
-                    "participant": row.participant,
-                    "line": row.line,
-                    "rhythm_condition": row.rhythm_condition,
-                    "language_group": row.language_group,
+                    "participant": metadata.participant,
+                    "line": metadata.line,
+                    "rhythm_condition": metadata.rhythm_type.value,
+                    "language_group": metadata.language_understanding.value,
                     "frequency_name": frequency_name,
                     "frequency_hz": freq,
                     "channel": ch_name,
@@ -544,7 +544,10 @@ def language_summary(participant_condition: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def run(data_root: Path, output_dir: Path) -> None:
+def main(args) -> None:
+    data_root = args.data_root
+    output_dir = args.output_dir
+    
     output_dir.mkdir(parents=True, exist_ok=True)
     metadata = build_metadata(data_root)
     # metadata.to_csv(output_dir / "metadata.csv", index=False)
@@ -552,16 +555,16 @@ def run(data_root: Path, output_dir: Path) -> None:
     file_rows = []
     channel_rows = []
     error_rows = []
-    for _, row in metadata.iterrows():
+    for row in metadata:
         try:
-            one_file_rows, one_channel_rows = analyze_file(row)
+            one_file_rows, one_channel_rows = analyze_sample(row)
         except Exception as exc:
             error_rows.append(
                 {
                     "participant": row.participant,
                     "line": row.line,
-                    "rhythm_condition": row.rhythm_condition,
-                    "language_group": row.language_group,
+                    "rhythm_condition": row.rhythm_type.value,
+                    "language_group": row.language_understanding.value,
                     "set_path": row.set_path,
                     "error_type": type(exc).__name__,
                     "error_message": str(exc),
@@ -622,7 +625,7 @@ def run(data_root: Path, output_dir: Path) -> None:
         )
 
 
-def main() -> None:
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Repeat no-narrow-filter ITPC analysis for EEGLAB epochs."
     )
@@ -639,8 +642,5 @@ def main() -> None:
         help="Directory for CSV outputs.",
     )
     args = parser.parse_args()
-    run(args.data_root, args.output_dir)
 
-
-if __name__ == "__main__":
-    main()
+    main(args)
