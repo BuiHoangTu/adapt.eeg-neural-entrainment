@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 import logging
+from os import PathLike
 import re
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,6 @@ from adapt_eeg.constants import (
     IRREGULAR_LINES,
     REGULAR_LINES,
 )
-
 
 
 class RhythmType(str, Enum):
@@ -72,10 +72,13 @@ def build_metadata(data_root: Path):
                 set_path=str(set_path),
                 fdt_path=str(fdt_path),
                 rhythm_type=RhythmType.from_line(line),
-                language_understanding=LanguageUnderstanding.from_participant(participant),
+                language_understanding=LanguageUnderstanding.from_participant(
+                    participant
+                ),
             )
         )
     return samples
+
 
 def merge_data(
     epochs: mne.Epochs,
@@ -382,7 +385,7 @@ def read_unepoch_sample(sample: SampleMetadata):
     """Read a single sample from disk and return an MNE Epochs object."""
     try:
         epochs = mne.read_epochs_eeglab(sample.set_path, verbose="ERROR")
-        merged_epochs, _ = merge_data(epochs, verbose=False) # type: ignore
+        merged_epochs, _ = merge_data(epochs, verbose=False)  # type: ignore
         return Sample(
             **sample.model_dump(),
             data=merged_epochs,
@@ -395,15 +398,48 @@ def read_unepoch_sample(sample: SampleMetadata):
         )
 
 
+def read_raw_data(data_root: str | PathLike):
+    data_root = Path(data_root)
+    
+    samples = []
 
+    for verse_dir in data_root.glob("v*"):
+        verse_match = re.fullmatch(r"v(\d+)", verse_dir.name)
+        if not verse_match:
+            logging.warning(
+                "The dir `%s` is not verse_id formatted but is in the verse_ids dir",
+                str(verse_dir),
+            )
+            continue
 
+        verse_id = int(verse_match.group(1))
+        dataset_dir = verse_dir / "4hz_datasets"
 
+        for participant_file in dataset_dir.glob("p*.set"):
+            participant_match = re.fullmatch(r"^p(\d+)\.set$", participant_file.name)
+            if not participant_match:
+                logging.warning(
+                    "The file `%s` is not participant_id formatted but is in the participant_ids dir",
+                    str(verse_dir),
+                )
+                continue
 
+            participant_id = int(participant_match.group(1))
 
+            data = mne.io.read_raw_eeglab(participant_file, verbose="ERROR")
 
+            samples.append(
+                Sample(
+                    participant=participant_id,
+                    line=verse_id,
+                    set_path="",
+                    fdt_path="",
+                    rhythm_type=RhythmType.from_line(verse_id),
+                    language_understanding=LanguageUnderstanding.from_participant(
+                        participant_id
+                    ),
+                    data=data,
+                )
+            )
 
-
-
-
-
-
+    return samples
