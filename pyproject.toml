@@ -10,6 +10,8 @@ dependencies = [
     "mne",
     "numpy",
     "pandas",
+    "scipy",
+    "scikit-learn",
 ]
 
 [tool.setuptools.packages.find]

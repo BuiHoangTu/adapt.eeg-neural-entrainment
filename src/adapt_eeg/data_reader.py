@@ -388,7 +388,7 @@ def read_unepoch_sample(sample: SampleMetadata):
             data=merged_epochs,
         )
     except Exception as _:
-        raw = mne.io.read_raw_eeglab(sample.set_path, verbose="ERROR")
+        raw = mne.io.read_raw_eeglab(sample.set_path, verbose="ERROR", preload=True)
         return Sample(
             **sample.model_dump(),
             data=raw,
