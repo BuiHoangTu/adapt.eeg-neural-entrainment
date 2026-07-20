@@ -16,8 +16,6 @@ from adapt_eeg.constants import (
     REGULAR_LINES,
 )
 
-FILE_RE = re.compile(r"part(?P<participant>\d+)v(?P<line>\d+)\.set$")
-CHANNELS_OF_INTEREST = ("Pz", "C4", "T7")
 
 
 class RhythmType(str, Enum):
@@ -54,6 +52,8 @@ class SampleMetadata(BaseModel):
 
 
 def build_metadata(data_root: Path):
+    FILE_RE = re.compile(r"part(?P<participant>\d+)v(?P<line>\d+)\.set$")
+
     samples: list[SampleMetadata] = []
     for set_path in data_root.glob("line*/*.set"):
         match = FILE_RE.search(set_path.name)

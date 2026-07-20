@@ -7,7 +7,10 @@ import pandas as pd
 from scipy import stats
 
 from adapt_eeg.constants import FREQUENCIES
-from adapt_eeg.data_reader import CHANNELS_OF_INTEREST, SampleMetadata, build_metadata
+from adapt_eeg.data_reader import SampleMetadata, build_metadata
+
+
+CHANNELS_OF_INTEREST = ("Pz", "C4", "T7")
 
 
 def group_difference_tests_by_channel(
