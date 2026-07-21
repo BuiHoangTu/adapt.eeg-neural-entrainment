@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict
 from adapt_eeg.constants import (
     ENGLISH_COMPETENCE_PARTICIPANTS,
     IRREGULAR_LINES,
+    N_CHANNELS,
     REGULAR_LINES,
 )
 
@@ -400,7 +401,7 @@ def read_unepoch_sample(sample: SampleMetadata):
 
 def read_raw_data(data_root: str | PathLike):
     data_root = Path(data_root)
-    
+
     samples = []
 
     for verse_dir in data_root.glob("v*"):
@@ -427,6 +428,16 @@ def read_raw_data(data_root: str | PathLike):
             participant_id = int(participant_match.group(1))
 
             data = mne.io.read_raw_eeglab(participant_file, verbose="ERROR")
+
+            n_channels = len(data.ch_names)
+            if n_channels != N_CHANNELS:
+                logging.info(
+                    "Participant %d at line %d has %d channels. Expecting %d",
+                    participant_id,
+                    verse_id,
+                    n_channels,
+                    N_CHANNELS,
+                )
 
             samples.append(
                 Sample(
