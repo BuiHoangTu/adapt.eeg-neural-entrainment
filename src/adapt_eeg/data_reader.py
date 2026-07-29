@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from enum import Enum
 import logging
-from os import PathLike
 import re
+from enum import Enum
+from os import PathLike
 from pathlib import Path
 from typing import Any
 

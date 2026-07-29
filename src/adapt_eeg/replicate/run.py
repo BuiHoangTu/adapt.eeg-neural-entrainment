@@ -43,16 +43,15 @@ def _itpc_from_raw(
     frequency_hz: float,
     window_seconds: float,
     step_seconds: float,
-) -> np.ndarray:
+) -> list[float]:
     picks = mne.pick_types(raw.info, eeg=True, exclude=[])
-    data = raw.get_data(picks=picks)
+    raw_eeg = raw.copy().pick(picks)
     return fixed_length_itpc(
-        data,
-        float(raw.info["sfreq"]),
+        raw_eeg,
         frequency_hz,
         window_seconds,
         step_seconds,
-    )
+    ).tolist()
 
 
 def analyze_sample(

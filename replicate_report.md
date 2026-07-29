@@ -1,25 +1,51 @@
 # ADAPT EEG replication report
 
-## Inputs and generated outputs
+## Experiment summaries
 
-This report summarizes the replication outputs in `results/replicate/` using the pipeline under `src/adapt_eeg/replicate/`.
+The paper tests whether neural entrainment to poetic rhythm is a biological universal. The core design compares EEG entrainment while participants listen to selected lines from Yeats's *Sailing to Byzantium*.
+
+Experiment design summarized from the paper draft:
+
+- Participants: 50 usable EEG participants after artifact exclusion.
+- Groups: Romanian-English speakers vs Romanian monolingual/non-English participants.
+- EEG: 19-channel Enobio 10-20 recording, sampled at 500 Hz, line-noise filtered at 50 Hz, cleaned with ICA in EEGLAB.
+- Stimulus: recorded recitation of *Sailing to Byzantium*.
+- Lines analyzed:
+  - regular rhythm: lines 3, 4, 10, 15, 23, 27, 30
+  - irregular rhythm: lines 1, 2, 5, 6, 7, 8, 9
+- Main EEG measure: inter-trial phase coherence / ITPC at 2 Hz and 4 Hz.
+- Main statistical design: mixed ANOVA with rhythm condition as a within-subject factor and language group as a between-subject factor.
+
+The paper draft's key claims are:
+
+1. Regular poetic rhythm should produce stronger 2 Hz entrainment than irregular poetic rhythm.
+2. This regular > irregular rhythm effect is reported most clearly at Pz, C4, and T7.
+3. Syllabic 4 Hz entrainment should not differ by poetic rhythm condition.
+4. Group effects are reported for some channels, with non-English/Romanian monolingual participants sometimes showing stronger entrainment than English-competent participants.
+
+
+## Replication attempt
+
+This report summarizes the latest replication outputs in `results/replicate/` after aligning ITPC extraction more closely with the paper method: each line-level Raw segment is converted to MNE fixed-length epochs, then ITPC is computed with `epochs.compute_tfr(method="morlet", return_itc=True)`.
+
+### Inputs and generated outputs
 
 Data coverage in the current run:
 
 - 50 participants
 - 14 analysis lines, 7 irregular and 7 regular
 - 700 participant-line files in `metadata.csv`
-- 3,594 included participant-condition-channel ITPC rows after studentized-residual filtering
+- 3,593 included participant-condition-channel ITPC rows after studentized-residual filtering
 - no load errors were recorded in `load_errors.csv`
 
 Generated focused plots:
 
-- `results/replicate/figures/rhythm_contrast_2hz.png`
-- `results/replicate/figures/rhythm_contrast_4hz.png`
+- `results/replicate/figures/aligned_mne_rhythm_contrast_2hz.png`
+- `results/replicate/figures/aligned_mne_rhythm_contrast_4hz.png`
 
-The contrast plotted is `regular mean ITPC - irregular mean ITPC`; negative values mean higher ITPC for irregular lines.
+The plotted contrast is `regular mean ITPC - irregular mean ITPC`; negative values mean higher ITPC for irregular lines.
 
-## Paper-style table outputs
+### Paper-style table outputs
 
 The analysis file produced these paper-style tables:
 
@@ -28,82 +54,92 @@ The analysis file produced these paper-style tables:
 - `paper_table_2_channels_of_interest.csv`
 - `paper_table_3_group_differences.csv`
 
-The statistical table in this replication is an approximation to the draft paper's mixed ANOVA table: the rhythm effect is computed from paired participant-level regular-vs-irregular contrasts, and the group effect is computed from participant mean ITPC by language group. It is useful for checking direction and rough significance, but it is not a byte-for-byte recreation of the draft's ANOVA software output.
+The statistical table in this replication is still an approximation to the draft paper's mixed ANOVA table: the rhythm effect is computed from paired participant-level regular-vs-irregular contrasts, and the group effect is computed from participant mean ITPC by language group. It is useful for checking direction and rough significance, but it is not a byte-for-byte recreation of the draft's ANOVA software output.
 
-## Main rhythm result
+### Main rhythm result
 
-The strongest finding in the replication is a broad rhythm effect, but its direction is opposite to the paper draft.
+After aligning extraction to MNE fixed-length epochs + `compute_tfr(..., return_itc=True)`, the main result is materially similar to the previous MNE run: broad rhythm effects are present at both frequencies, but the direction remains opposite to the paper draft.
 
 Significant rhythm effects at `p < .05`:
 
-- 2 Hz: 16 of 18 channels
-- 4 Hz: 14 of 18 channels
+- 2 Hz: 18 of 18 channels
+- 4 Hz: 18 of 18 channels
 
 Top rhythm effects:
 
 | channel | frequency | F | p | partial eta² |
 |---|---:|---:|---:|---:|
-| Fp1 | 2 Hz | 25.751 | 0.000006 | 0.349 |
-| P7 | 4 Hz | 22.114 | 0.000022 | 0.315 |
-| F7 | 4 Hz | 19.241 | 0.000061 | 0.282 |
-| P7 | 2 Hz | 18.474 | 0.000084 | 0.278 |
-| F3 | 2 Hz | 16.644 | 0.000166 | 0.254 |
-| F3 | 4 Hz | 14.850 | 0.000339 | 0.233 |
-| Pz | 4 Hz | 14.692 | 0.000368 | 0.234 |
-| Fp2 | 2 Hz | 14.305 | 0.000431 | 0.230 |
-| P4 | 2 Hz | 14.136 | 0.000454 | 0.224 |
-| Pz | 2 Hz | 13.917 | 0.000497 | 0.221 |
+| F7 | 2 Hz | 35.811 | <0.000001 | 0.422 |
+| P7 | 2 Hz | 40.749 | <0.000001 | 0.454 |
+| O2 | 2 Hz | 42.797 | <0.000001 | 0.471 |
+| O1 | 2 Hz | 37.113 | <0.000001 | 0.436 |
+| P4 | 2 Hz | 40.004 | <0.000001 | 0.449 |
+| P7 | 4 Hz | 37.241 | <0.000001 | 0.432 |
+| P4 | 4 Hz | 34.256 | <0.000001 | 0.411 |
+| O2 | 4 Hz | 39.648 | <0.000001 | 0.452 |
+| O1 | 4 Hz | 33.852 | <0.000001 | 0.414 |
+| Fp1 | 2 Hz | 31.465 | 0.000001 | 0.391 |
+| F7 | 4 Hz | 32.600 | 0.000001 | 0.400 |
+| T7 | 2 Hz | 29.720 | 0.000002 | 0.378 |
 
-## Channels emphasized in the paper draft
+### Channels emphasized in the paper draft
 
-The draft paper highlighted Pz, C4, and T7 for the 2 Hz poetic rhythm effect. In our run:
+The draft paper highlighted Pz, C4, and T7 for the 2 Hz poetic rhythm effect. In the latest aligned MNE run:
 
-| channel | frequency | irregular mean | regular mean | regular - irregular | rhythm p |
-|---|---:|---:|---:|---:|---:|
-| C4 | 2 Hz | 0.042077 | 0.038889 | -0.003188 | 0.072004 |
-| Pz | 2 Hz | 0.042517 | 0.036409 | -0.006108 | 0.000497 |
-| T7 | 2 Hz | 0.041398 | 0.037088 | -0.004310 | 0.010818 |
-| C4 | 4 Hz | 0.041983 | 0.037620 | -0.004363 | 0.015030 |
-| Pz | 4 Hz | 0.041806 | 0.035616 | -0.006190 | 0.000368 |
-| T7 | 4 Hz | 0.041429 | 0.036643 | -0.004786 | 0.005907 |
+| channel | frequency | irregular mean | regular mean | regular - irregular |
+|---|---:|---:|---:|---:|
+| C4 | 2 Hz | 0.062921 | 0.056639 | -0.006282 |
+| Pz | 2 Hz | 0.063340 | 0.058103 | -0.005237 |
+| T7 | 2 Hz | 0.063198 | 0.056301 | -0.006897 |
+| C4 | 4 Hz | 0.059710 | 0.053270 | -0.006440 |
+| Pz | 4 Hz | 0.060060 | 0.054980 | -0.005080 |
+| T7 | 4 Hz | 0.060011 | 0.053299 | -0.006712 |
 
-Important differences from the paper draft:
+### Group effects
 
-1. **Direction is reversed.** The paper reports higher entrainment for regular poetic rhythm than irregular poetic rhythm. Our current output has higher ITPC for irregular rhythm at all three highlighted channels.
-2. **C4 at 2 Hz is not significant here.** The paper reports C4 as significant at 2 Hz (`p = .024`); our approximate table gives C4 2 Hz `p = .072`.
-3. **4 Hz rhythm effects appear significant here.** The paper draft states there was no significant rhythm-type difference at 4 Hz. Our current output has significant 4 Hz rhythm effects at C4, Pz, T7, and many other channels.
+The paper draft reports group effects where Romanian monolinguals/non-English participants entrained more than English-competent participants, especially P8 at 2 Hz and several 4 Hz frontal/central channels.
 
-These are large substantive differences, not just rounding differences.
-
-## Group effects
-
-The paper draft reports some group effects where Romanian monolinguals/non-English participants entrained more than English-competent participants, especially P8 at 2 Hz and several 4 Hz frontal/central channels.
-
-Our run found **no significant group effects at p < .05** in the approximate table.
+After the aligned MNE rerun, there are **no significant group effects at `p < .05`** in the approximate table.
 
 Smallest group-comparison p-values:
 
 | channel | frequency | non-English - English mean ITPC | 95% CI low | 95% CI high | p |
 |---|---:|---:|---:|---:|---:|
-| P8 | 4 Hz | 0.003376 | -0.000673 | 0.007425 | 0.099828 |
-| F7 | 4 Hz | 0.002450 | -0.001037 | 0.005937 | 0.162941 |
-| T7 | 4 Hz | 0.002087 | -0.001058 | 0.005232 | 0.187831 |
-| O1 | 2 Hz | 0.002198 | -0.001144 | 0.005541 | 0.192194 |
-| T7 | 2 Hz | 0.002132 | -0.001133 | 0.005398 | 0.194166 |
-| C4 | 4 Hz | 0.002475 | -0.001387 | 0.006337 | 0.200853 |
+| F3 | 4 Hz | 0.002161 | -0.000314 | 0.004636 | 0.084889 |
+| O2 | 2 Hz | -0.002180 | -0.004763 | 0.000402 | 0.095904 |
+| O2 | 4 Hz | -0.002086 | -0.004667 | 0.000494 | 0.110482 |
+| F3 | 2 Hz | 0.001841 | -0.000614 | 0.004295 | 0.136482 |
+| P4 | 2 Hz | -0.001578 | -0.003920 | 0.000763 | 0.181251 |
+| O1 | 2 Hz | 0.001525 | -0.000807 | 0.003857 | 0.194801 |
+| P4 | 4 Hz | -0.001421 | -0.003767 | 0.000924 | 0.228736 |
+| O1 | 4 Hz | 0.001368 | -0.001027 | 0.003764 | 0.256453 |
+| P8 | 4 Hz | 0.001226 | -0.001158 | 0.003611 | 0.305994 |
+| F7 | 2 Hz | -0.001147 | -0.003388 | 0.001094 | 0.307434 |
 
-The direction is often consistent with the draft for group differences (non-English > English), but the effects are not statistically significant in this run.
+### Change from the previous MNE run
 
-## Interpretation
+The latest method is closer to the paper implementation style, and it changed some details:
 
-The replication currently does **not** reproduce the main paper-draft pattern.
+- Included rows changed from 3,596 to 3,593 after outlier filtering.
+- Highlighted-channel ITPC values are similar but not identical.
+- Rhythm effects remain significant at all 18 channels for both 2 Hz and 4 Hz.
+- Group effects changed materially: the earlier MNE run had significant P8 group effects at both 2 Hz and 4 Hz; the aligned run has no significant group effects.
 
-The most important mismatch is the rhythm contrast: the draft claims regular > irregular at 2 Hz, while our result is consistently irregular > regular. The second major mismatch is that the draft claims no rhythm-type effect at 4 Hz, while our result shows many significant 4 Hz rhythm effects. The third major mismatch is that draft group effects are not recovered.
+### Summary of differences in our reproduction attempt
+
+The aligned MNE-based replication still does **not** reproduce the main paper-draft pattern.
+
+The major differences are:
+
+1. **Rhythm direction is reversed.** The draft claims regular > irregular at 2 Hz, while the aligned replication is consistently irregular > regular, including at Pz, C4, and T7.
+2. **4 Hz rhythm effects are present in the replication.** The draft claims no rhythm-type effect at 4 Hz, but the aligned replication shows significant rhythm effects at every channel for 4 Hz.
+3. **Group effects are not recovered.** The draft reports several group effects; the aligned replication has no significant group effects at `p < .05`.
+4. **The mismatch is substantive.** The differences are not small rounding or formatting differences. They affect the sign, frequency specificity, and group-effect conclusions.
 
 Likely things to check next:
 
 1. Confirm whether `regular` and `irregular` line labels match the intended files and whether any label inversion occurred.
-2. Confirm that the ITPC computation matches the original extraction code/windowing exactly.
-3. Check whether the `.set` files in `data/raw/datasets_4Hz` are already frequency-specific/processed in a way that changes interpretation of the 2 Hz vs 4 Hz analysis.
-4. Compare a few participant-channel-line ITPC values against the original/reference outputs, if available.
+2. Confirm that the `.set` files in `data/raw/datasets_4Hz` are organized by poem line exactly as assumed by `v*/4hz_datasets/p*.set`.
+3. Check whether the `.set` files are already frequency-specific or transformed in a way that changes interpretation of 2 Hz vs 4 Hz MNE ITC.
+4. Compare a few participant-channel-line ITPC values against original/reference outputs, if available.
 5. Replace the approximate table code with a true mixed ANOVA implementation if exact statistical reproduction is required.
