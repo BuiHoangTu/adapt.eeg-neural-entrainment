@@ -27,15 +27,29 @@ The paper's central claims are:
 
 The reproduction results are stored in [`results/replicate/`](results/replicate/). The current run contains complete coverage for the selected line set: 50 participants, 14 analysis lines, and 700 participant-line observations. After outlier filtering, 3,593 participant-condition-channel ITPC rows are included in the reproduced analysis.
 
-The principal output files are:
-
-- [Paper-style rhythm/group table](results/replicate/paper_table_2_mixed_anova.csv)
-- [Focused Pz/C4/T7 table](results/replicate/paper_table_2_channels_of_interest.csv)
-- [Group-difference table](results/replicate/paper_table_3_group_differences.csv)
-- [2 Hz rhythm-contrast plot](results/replicate/figures/aligned_mne_rhythm_contrast_2hz.png)
-- [4 Hz rhythm-contrast plot](results/replicate/figures/aligned_mne_rhythm_contrast_4hz.png)
-
 In the rhythm-contrast plots and tables, the contrast is defined as **regular mean ITPC - irregular mean ITPC**. Negative values therefore indicate stronger ITPC for irregular lines.
+
+### Visual summary of reproduced findings
+
+![Rhythm contrast by channel at 2 Hz](results/replicate/figures/rhythm_contrast_by_channel_2hz.png)
+
+**Figure 1.** Reproduced 2 Hz rhythm contrast by EEG channel. Most channels are below zero, showing that irregular lines have higher mean ITPC than regular lines in the reproduced analysis.
+
+![Rhythm contrast by channel at 4 Hz](results/replicate/figures/rhythm_contrast_by_channel_4hz.png)
+
+**Figure 2.** Reproduced 4 Hz rhythm contrast by EEG channel. The same negative direction appears at the speaking-rhythm frequency, which differs from the paper's claim that rhythm condition should not affect 4 Hz entrainment.
+
+![Mean ITPC at highlighted paper channels](results/replicate/figures/highlighted_channels_itpc.png)
+
+**Figure 3.** Mean ITPC at Pz, C4, and T7. These are the channels emphasized in the paper for the 2 Hz regular > irregular effect. In the reproduced results, irregular lines have higher mean ITPC at all three channels.
+
+![Paper versus reproduced group effects](results/replicate/figures/group_effects_paper_vs_reproduction.png)
+
+**Figure 4.** Paper-reported group differences compared with reproduced group differences. The paper values are consistently positive for the selected channels, whereas the reproduced effects are smaller and sometimes reverse direction.
+
+![Rhythm-effect p-value heatmap](results/replicate/figures/rhythm_pvalue_heatmap.png)
+
+**Figure 5.** Significance of reproduced rhythm effects across channels and frequencies. The reproduced rhythm effect is widespread at both 2 Hz and 4 Hz, rather than being specific to the 2 Hz poetic rhythm rate.
 
 ### Difference in rhythm effects
 
@@ -48,7 +62,7 @@ Significant rhythm effects at `p < .05` in the reproduction are widespread:
 - 2 Hz: 18 of 18 channels
 - 4 Hz: 18 of 18 channels
 
-Selected strongest reproduced rhythm effects are shown below.
+Selected strongest reproduced rhythm effects from the [paper-style rhythm/group table](results/replicate/paper_table_2_mixed_anova.csv) are shown below.
 
 | channel | frequency | F | p | partial eta² |
 |---|---:|---:|---:|---:|
@@ -69,7 +83,7 @@ Thus, the reproduction gives strong evidence that rhythm condition matters, but 
 
 ### Difference at Pz, C4, and T7
 
-The paper emphasizes Pz, C4, and T7 as the main channels supporting the 2 Hz regular > irregular poetic rhythm effect. These channels are therefore the most important direct comparison points.
+The paper emphasizes Pz, C4, and T7 as the main channels supporting the 2 Hz regular > irregular poetic rhythm effect. These channels are therefore the most important direct comparison points; the table below is drawn from the [focused Pz/C4/T7 table](results/replicate/paper_table_2_channels_of_interest.csv).
 
 | channel | frequency | irregular mean | regular mean | regular - irregular |
 |---|---:|---:|---:|---:|
@@ -88,7 +102,7 @@ The paper reports group differences in some channels, generally in the direction
 
 The reproduction gives weaker support for this claim. The reproduced group-difference table uses the same contrast direction: non-English/Romanian monolingual participants minus English-competent participants. Positive values therefore indicate stronger mean ITPC in the non-English group. Some reproduced contrasts point in the same direction as the paper, but they are smaller and non-significant; several paper-positive channels reverse sign.
 
-Examples of direct numerical comparison:
+Examples of direct numerical comparison from the [group-difference table](results/replicate/paper_table_3_group_differences.csv):
 
 | channel | frequency | paper difference | reproduced difference | reproduced p | interpretation |
 |---|---:|---:|---:|---:|---|
