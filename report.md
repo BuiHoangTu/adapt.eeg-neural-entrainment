@@ -143,3 +143,72 @@ The principal differences are:
 4. **The discrepancy concerns the main claims.** The mismatch is not limited to minor numerical variation; it affects the direction of the main rhythm effect, the frequency specificity of that effect, and the reported group differences.
 
 Overall, the reproduction supports the presence of rhythm-related ITPC differences, but it does not support the paper's specific conclusion that regular poetic rhythm produces stronger 2 Hz entrainment than irregular poetic rhythm. The current results instead suggest stronger entrainment for irregular lines and a broad effect at both 2 Hz and 4 Hz.
+
+## Cycle aligned ITPC
+
+A modified reproduction was run using three-cycle epochs with a one-cycle shift. This analysis is stored in [`results/itpc_3cycles/`](results/itpc_3cycles/). The run produced complete metadata for the same 50 participants and 700 participant-line observations. After outlier filtering, 3,599 participant-condition-channel rows were retained. The pipeline reported 100 skipped participant-line-frequency entries in [`skipped_samples.csv`](results/itpc_3cycles/skipped_samples.csv), indicating that most but not all requested 3-cycle windows were analyzable.
+
+This modification changes the scale of ITPC values substantially, because the epochs are longer and are explicitly tied to the analyzed frequency. The main interpretive pattern also changes: the 2 Hz rhythm effect is no longer statistically reliable across channels, whereas the 4 Hz rhythm effect remains broad and strong.
+
+### Difference in rhythm effects under three-cycle epochs
+
+The paper draft predicts the main rhythm effect at 2 Hz, with regular poetic rhythm producing stronger entrainment than irregular rhythm. The three-cycle reproduction does not support that pattern. At 2 Hz, none of the 18 channels reaches `p < .05`. At 4 Hz, however, 17 of 18 channels show significant rhythm effects.
+
+Selected strongest reproduced rhythm effects from the three-cycle analysis are:
+
+| channel | frequency | F | p | partial eta² |
+|---|---:|---:|---:|---:|
+| P8 | 4 Hz | 27.742 | 0.000003 | 0.361 |
+| T7 | 4 Hz | 26.739 | 0.000004 | 0.353 |
+| T8 | 4 Hz | 20.917 | 0.000033 | 0.299 |
+| F7 | 4 Hz | 16.295 | 0.000190 | 0.250 |
+| P7 | 4 Hz | 12.337 | 0.000965 | 0.201 |
+| C3 | 4 Hz | 11.743 | 0.001245 | 0.193 |
+| C4 | 4 Hz | 11.544 | 0.001358 | 0.191 |
+| O2 | 4 Hz | 10.529 | 0.002121 | 0.177 |
+| P4 | 4 Hz | 10.505 | 0.002143 | 0.177 |
+| F8 | 4 Hz | 10.113 | 0.002553 | 0.171 |
+
+The three-cycle result therefore shifts the strongest reproducible rhythm evidence toward 4 Hz rather than 2 Hz. This is the opposite of the paper's frequency-specific interpretation.
+
+### Difference at Pz, C4, and T7 under three-cycle epochs
+
+The channels emphasized in the paper still do not show the paper's reported pattern. The three-cycle reproduction gives the following condition means:
+
+| channel | frequency | irregular mean | regular mean | regular - irregular |
+|---|---:|---:|---:|---:|
+| C4 | 2 Hz | 0.384075 | 0.352087 | -0.031988 |
+| Pz | 2 Hz | 0.364702 | 0.358958 | -0.005744 |
+| T7 | 2 Hz | 0.365918 | 0.356859 | -0.009059 |
+| C4 | 4 Hz | 0.547905 | 0.491782 | -0.056123 |
+| Pz | 4 Hz | 0.531262 | 0.479827 | -0.051435 |
+| T7 | 4 Hz | 0.562233 | 0.472078 | -0.090155 |
+
+All six contrasts are negative, meaning that irregular lines again produce higher mean ITPC than regular lines. The direction remains inconsistent with the paper's claim of regular > irregular at 2 Hz. The largest highlighted-channel difference appears at T7 in the 4 Hz condition.
+
+### Difference in group effects under three-cycle epochs
+
+The paper reports group effects as evidence that non-English/Romanian monolingual participants can show stronger entrainment despite not understanding the poem. The three-cycle reproduction does not recover statistically reliable group effects. No channel reaches `p < .05` for the group contrast.
+
+The smallest reproduced group-comparison p-values are:
+
+| channel | frequency | non-English - English mean ITPC | 95% CI low | 95% CI high | p |
+|---|---:|---:|---:|---:|---:|
+| Pz | 4 Hz | -0.034367 | -0.071474 | 0.002741 | 0.068657 |
+| Fp2 | 4 Hz | -0.029275 | -0.062440 | 0.003890 | 0.082158 |
+| P7 | 2 Hz | 0.028244 | -0.006140 | 0.062628 | 0.104867 |
+| T8 | 2 Hz | 0.025215 | -0.007077 | 0.057507 | 0.122481 |
+| T7 | 2 Hz | 0.024571 | -0.008247 | 0.057389 | 0.138732 |
+| C3 | 2 Hz | 0.020582 | -0.011711 | 0.052876 | 0.206136 |
+| P7 | 4 Hz | 0.016398 | -0.016900 | 0.049696 | 0.326810 |
+| F4 | 2 Hz | 0.016414 | -0.018563 | 0.051391 | 0.349932 |
+| F7 | 2 Hz | 0.015486 | -0.018936 | 0.049908 | 0.367860 |
+| T7 | 4 Hz | -0.013905 | -0.046713 | 0.018903 | 0.398355 |
+
+The signs are mixed: some 2 Hz contrasts favor the non-English group, while the strongest 4 Hz contrasts tend to favor the English-competent group. Because the confidence intervals include zero, this analysis does not provide strong evidence that non-understanding participants gain more neural entrainment.
+
+### Summary of the three-cycle reproduction
+
+The three-cycle reproduction reinforces the main conclusion of the earlier reproduction attempts: the paper's central inferential pattern is not recovered. The analysis produces strong rhythm-related effects, but they are concentrated at 4 Hz rather than 2 Hz. At the channels emphasized in the paper, the condition means again show irregular > regular, not regular > irregular. Group differences remain non-significant.
+
+Overall, the three-cycle modification does not resolve the discrepancy with the paper draft. Instead, it suggests that the reproduced entrainment pattern is sensitive to epoch construction, but the direction of the rhythm contrast remains inconsistent with the draft's main claim.
