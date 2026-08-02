@@ -6,6 +6,7 @@ from pathlib import Path
 import mne
 import pandas as pd
 
+from adapt_eeg.constants import FREQUENCIES as FREQUENCY_BY_NAME
 from adapt_eeg.itpc_3cycles.design import (
     CHANNELS_OF_INTEREST,
     EXPECTED_CHANNELS,
@@ -24,6 +25,13 @@ from adapt_eeg.itpc_3cycles.stats import (
 )
 
 CSV_FLOAT_FORMAT = "%.6f"
+
+
+def _frequency_name_for_hz(frequency_hz: float) -> str:
+    for frequency_name, candidate_hz in FREQUENCY_BY_NAME.items():
+        if candidate_hz == frequency_hz:
+            return frequency_name
+    return str(frequency_hz)
 
 
 def _pick_eeg_channels(inst: mne.io.BaseRaw) -> list[str]:
@@ -65,8 +73,8 @@ def analyze_sample(
             {
                 "participant": sample.participant,
                 "line": sample.line,
+                "frequency_name": None,
                 "frequency_hz": None,
-                "set_path": str(sample.set_path),
                 "reason": "read_failed",
                 "error": repr(exc),
             }
@@ -88,12 +96,12 @@ def analyze_sample(
                 {
                     "participant": sample.participant,
                     "line": sample.line,
+                    "frequency_name": _frequency_name_for_hz(frequency_hz),
                     "frequency_hz": frequency_hz,
                     "epoch_seconds": epoch_seconds,
                     "shift_seconds": shift_seconds,
                     "cycles_per_epoch": cycles_per_epoch,
                     "shift_cycles": shift_cycles,
-                    "set_path": str(sample.set_path),
                     "reason": "not_enough_usable_signal_for_3_cycle_itpc",
                     "error": repr(exc),
                 }
@@ -107,6 +115,7 @@ def analyze_sample(
                     "line": sample.line,
                     "rhythm_condition": sample.rhythm_condition.value,
                     "language_group": sample.language_group.value,
+                    "frequency_name": _frequency_name_for_hz(frequency_hz),
                     "frequency_hz": frequency_hz,
                     "epoch_seconds": epoch_seconds,
                     "shift_seconds": shift_seconds,
@@ -114,7 +123,6 @@ def analyze_sample(
                     "shift_cycles": shift_cycles,
                     "channel": channel,
                     "itpc": float(itpc),
-                    "set_path": str(sample.set_path),
                 }
             )
     return rows, skipped
@@ -127,6 +135,7 @@ def summarize_outputs(channel_itpc: pd.DataFrame) -> dict[str, pd.DataFrame]:
                 "participant",
                 "language_group",
                 "rhythm_condition",
+                "frequency_name",
                 "frequency_hz",
                 "channel",
             ],
@@ -147,7 +156,10 @@ def summarize_outputs(channel_itpc: pd.DataFrame) -> dict[str, pd.DataFrame]:
     included = cleaned.loc[~cleaned["excluded_as_outlier"]].copy()
 
     condition_stats = (
-        included.groupby(["frequency_hz", "channel", "rhythm_condition"], as_index=False)
+        included.groupby(
+            ["frequency_name", "frequency_hz", "channel", "rhythm_condition"],
+            as_index=False,
+        )
         .agg(
             mean_itpc=("itpc", "mean"),
             sd_itpc=("itpc", "std"),
@@ -159,7 +171,10 @@ def summarize_outputs(channel_itpc: pd.DataFrame) -> dict[str, pd.DataFrame]:
     )
 
     group_stats = (
-        included.groupby(["frequency_hz", "channel", "language_group"], as_index=False)
+        included.groupby(
+            ["frequency_name", "frequency_hz", "channel", "language_group"],
+            as_index=False,
+        )
         .agg(
             mean_itpc=("itpc", "mean"),
             sd_itpc=("itpc", "std"),
@@ -210,7 +225,6 @@ def run_replication(
                 "line": sample.line,
                 "rhythm_condition": sample.rhythm_condition.value,
                 "language_group": sample.language_group.value,
-                "set_path": str(sample.set_path),
             }
             for sample in samples
         ]

@@ -40,6 +40,13 @@ def paired_rhythm_tests(
     rows: list[dict] = []
     grouped = frame.groupby(["frequency_hz", "channel"])
     for (frequency_hz, channel), group in grouped:
+        frequency_name = None
+        if "frequency_name" in group.columns:
+            frequency_name = (
+                group["frequency_name"].dropna().iloc[0]
+                if not group["frequency_name"].dropna().empty
+                else None
+            )
         pivot = group.pivot_table(
             index="participant",
             columns="rhythm_condition",
@@ -53,6 +60,7 @@ def paired_rhythm_tests(
         diff = pivot["regular"] - pivot["irregular"]
         rows.append(
             {
+                "frequency_name": frequency_name,
                 "frequency_hz": frequency_hz,
                 "channel": channel,
                 "n_participants": len(pivot),
@@ -72,6 +80,13 @@ def group_difference_tests(
 ) -> pd.DataFrame:
     rows: list[dict] = []
     for (frequency_hz, channel), group in frame.groupby(["frequency_hz", "channel"]):
+        frequency_name = None
+        if "frequency_name" in group.columns:
+            frequency_name = (
+                group["frequency_name"].dropna().iloc[0]
+                if not group["frequency_name"].dropna().empty
+                else None
+            )
         participant_means = group.groupby(
             ["participant", "language_group"], as_index=False
         )[value_column].mean()
@@ -87,6 +102,7 @@ def group_difference_tests(
         test = stats.ttest_ind(non_english, english, equal_var=False)
         rows.append(
             {
+                "frequency_name": frequency_name,
                 "frequency_hz": frequency_hz,
                 "channel": channel,
                 "n_english": len(english),
@@ -104,6 +120,12 @@ def group_difference_tests(
 def mixed_anova_approximation(frame: pd.DataFrame, value_column: str = "itpc") -> pd.DataFrame:
     rhythm = paired_rhythm_tests(frame, value_column)
     group = group_difference_tests(frame, value_column)
+    if rhythm.empty and group.empty:
+        return pd.DataFrame(columns=["frequency_name", "frequency_hz", "channel"])
+    if rhythm.empty:
+        return group.copy()
+    if group.empty:
+        return rhythm.copy()
     return rhythm.merge(
         group,
         on=["frequency_hz", "channel"],

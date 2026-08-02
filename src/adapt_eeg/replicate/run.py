@@ -6,6 +6,7 @@ from pathlib import Path
 import mne
 import pandas as pd
 
+from adapt_eeg.constants import FREQUENCIES as FREQUENCY_BY_NAME
 from adapt_eeg.replicate.design import (
     CHANNELS_OF_INTEREST,
     EXPECTED_CHANNELS,
@@ -24,6 +25,13 @@ from adapt_eeg.replicate.stats import (
 )
 
 CSV_FLOAT_FORMAT = "%.6f"
+
+
+def _frequency_name_for_hz(frequency_hz: float) -> str:
+    for frequency_name, candidate_hz in FREQUENCY_BY_NAME.items():
+        if candidate_hz == frequency_hz:
+            return frequency_name
+    return str(frequency_hz)
 
 
 def _pick_eeg_channels(inst: mne.Epochs | mne.io.BaseRaw) -> list[str]:
@@ -73,10 +81,10 @@ def analyze_sample(
                         "line": sample.line,
                         "rhythm_condition": sample.rhythm_condition.value,
                         "language_group": sample.language_group.value,
+                        "frequency_name": _frequency_name_for_hz(frequency_hz),
                         "frequency_hz": frequency_hz,
                         "channel": channel,
                         "itpc": float(itpc),
-                        "set_path": str(sample.set_path),
                     }
                 )
         return rows, None
@@ -84,7 +92,6 @@ def analyze_sample(
         return [], {
             "participant": sample.participant,
             "line": sample.line,
-            "set_path": str(sample.set_path),
             "error": repr(exc),
         }
 
@@ -173,7 +180,6 @@ def run_replication(
                 "line": sample.line,
                 "rhythm_condition": sample.rhythm_condition.value,
                 "language_group": sample.language_group.value,
-                "set_path": str(sample.set_path),
             }
             for sample in samples
         ]
