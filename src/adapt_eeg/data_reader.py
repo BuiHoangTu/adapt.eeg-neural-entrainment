@@ -427,7 +427,7 @@ def read_raw_data(data_root: str | PathLike):
 
             participant_id = int(participant_match.group(1))
 
-            data = mne.io.read_raw_eeglab(participant_file, verbose="ERROR")
+            data = mne.io.read_raw_eeglab(participant_file, verbose="ERROR", preload=True)
 
             n_channels = len(data.ch_names)
             if n_channels != N_CHANNELS:
@@ -443,8 +443,8 @@ def read_raw_data(data_root: str | PathLike):
                 Sample(
                     participant=participant_id,
                     line=verse_id,
-                    set_path="",
-                    fdt_path="",
+                    set_path=str(participant_file),
+                    fdt_path=str(participant_file.with_suffix(".fdt")),
                     rhythm_type=RhythmType.from_line(verse_id),
                     language_understanding=LanguageUnderstanding.from_participant(
                         participant_id

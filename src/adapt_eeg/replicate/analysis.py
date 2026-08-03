@@ -8,7 +8,7 @@ import pandas as pd
 from scipy import stats
 
 from adapt_eeg.constants import IRREGULAR_LINES, REGULAR_LINES
-from adapt_eeg.replicate.design import CHANNELS_OF_INTEREST
+from adapt_eeg.replicate.stats import reject_studentized_residuals
 
 CSV_FLOAT_FORMAT = "%.6f"
 
@@ -146,24 +146,36 @@ def paper_table_3(included_itpc: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values(["frequency_hz", "eeg_channel"])
 
 
-def channels_of_interest_table(included_itpc: pd.DataFrame) -> pd.DataFrame:
-    return paper_table_2(included_itpc).loc[
-        lambda table: table["eeg_channel"].isin(CHANNELS_OF_INTEREST)
-    ]
+def included_itpc_from_channel_lines(channel_itpc: pd.DataFrame) -> pd.DataFrame:
+    participant_condition_channel = (
+        channel_itpc.groupby(
+            [
+                "participant",
+                "language_group",
+                "rhythm_condition",
+                "frequency_hz",
+                "channel",
+            ],
+            as_index=False,
+        )
+        .agg(itpc=("itpc", "mean"), n_lines=("line", "nunique"))
+        .sort_values(["frequency_hz", "channel", "participant", "rhythm_condition"])
+    )
+    cleaned = reject_studentized_residuals(participant_condition_channel)
+    return cleaned.loc[~cleaned["excluded_as_outlier"]].copy()
 
 
 def write_paper_tables(results_dir: Path) -> None:
-    included_path = results_dir / "itpc_included_after_outlier_rejection.csv"
-    if not included_path.exists():
+    channel_lines_path = results_dir / "itpc_by_channel_line.csv"
+    if not channel_lines_path.exists():
         raise FileNotFoundError(
-            f"Missing {included_path}. Run adapt_eeg.replicate.run before table analysis."
+            f"Missing {channel_lines_path}. Run adapt_eeg.replicate.run before table analysis."
         )
 
-    included_itpc = pd.read_csv(included_path)
+    included_itpc = included_itpc_from_channel_lines(pd.read_csv(channel_lines_path))
     outputs = {
         "paper_table_1_beat_distances.csv": paper_table_1(),
         "paper_table_2_mixed_anova.csv": paper_table_2(included_itpc),
-        "paper_table_2_channels_of_interest.csv": channels_of_interest_table(included_itpc),
         "paper_table_3_group_differences.csv": paper_table_3(included_itpc),
     }
     for filename, frame in outputs.items():

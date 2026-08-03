@@ -6,23 +6,9 @@ from pathlib import Path
 import mne
 import pandas as pd
 
-from adapt_eeg.constants import FREQUENCIES as FREQUENCY_BY_NAME
-from adapt_eeg.replicate.design import (
-    CHANNELS_OF_INTEREST,
-    EXPECTED_CHANNELS,
-    FREQUENCIES_HZ,
-    PaperSample,
-    discover_samples,
-    read_eeglab_sample,
-    validate_design_coverage,
-)
+from adapt_eeg.constants import FREQUENCIES as FREQUENCY_BY_NAME, N_CHANNELS
+from adapt_eeg.data_reader import Sample, read_raw_data
 from adapt_eeg.replicate.itpc import fixed_length_itpc
-from adapt_eeg.replicate.stats import (
-    group_difference_tests,
-    mixed_anova_approximation,
-    paired_rhythm_tests,
-    reject_studentized_residuals,
-)
 
 CSV_FLOAT_FORMAT = "%.6f"
 
@@ -37,9 +23,9 @@ def _frequency_name_for_hz(frequency_hz: float) -> str:
 def _pick_eeg_channels(inst: mne.Epochs | mne.io.BaseRaw) -> list[str]:
     picks = mne.pick_types(inst.info, eeg=True, exclude=[])
     channel_names = [inst.ch_names[pick] for pick in picks]
-    if len(channel_names) != EXPECTED_CHANNELS:
+    if len(channel_names) != N_CHANNELS:
         print(
-            f"Warning: expected {EXPECTED_CHANNELS} EEG channels, found "
+            f"Warning: expected {N_CHANNELS} EEG channels, found "
             f"{len(channel_names)} in {getattr(inst, 'filename', '<memory>')}"
         )
     return channel_names
@@ -63,15 +49,15 @@ def _itpc_from_raw(
 
 
 def analyze_sample(
-    sample: PaperSample,
+    sample: Sample,
     window_seconds: float,
     step_seconds: float,
 ) -> tuple[list[dict], dict | None]:
     try:
-        raw = read_eeglab_sample(sample)
+        raw = sample.data
         channel_names = _pick_eeg_channels(raw)
         rows: list[dict] = []
-        for frequency_hz in FREQUENCIES_HZ:
+        for frequency_hz in FREQUENCY_BY_NAME.values():
             values = _itpc_from_raw(raw, frequency_hz, window_seconds, step_seconds)
 
             for channel, itpc in zip(channel_names, values, strict=False):
@@ -79,8 +65,8 @@ def analyze_sample(
                     {
                         "participant": sample.participant,
                         "line": sample.line,
-                        "rhythm_condition": sample.rhythm_condition.value,
-                        "language_group": sample.language_group.value,
+                        "rhythm_condition": sample.rhythm_type.value,
+                        "language_group": sample.language_understanding.value,
                         "frequency_name": _frequency_name_for_hz(frequency_hz),
                         "frequency_hz": frequency_hz,
                         "channel": channel,
@@ -97,57 +83,7 @@ def analyze_sample(
 
 
 def summarize_outputs(channel_itpc: pd.DataFrame) -> dict[str, pd.DataFrame]:
-    participant_condition_channel = (
-        channel_itpc.groupby(
-            [
-                "participant",
-                "language_group",
-                "rhythm_condition",
-                "frequency_hz",
-                "channel",
-            ],
-            as_index=False,
-        )
-        .agg(itpc=("itpc", "mean"), n_lines=("line", "nunique"))
-        .sort_values(["frequency_hz", "channel", "participant", "rhythm_condition"])
-    )
-
-    cleaned = reject_studentized_residuals(participant_condition_channel)
-    included = cleaned.loc[~cleaned["excluded_as_outlier"]].copy()
-
-    condition_stats = (
-        included.groupby(["frequency_hz", "channel", "rhythm_condition"], as_index=False)
-        .agg(
-            mean_itpc=("itpc", "mean"),
-            sd_itpc=("itpc", "std"),
-            n_participants=("participant", "nunique"),
-        )
-        .sort_values(["frequency_hz", "channel", "rhythm_condition"])
-    )
-
-    group_stats = (
-        included.groupby(["frequency_hz", "channel", "language_group"], as_index=False)
-        .agg(
-            mean_itpc=("itpc", "mean"),
-            sd_itpc=("itpc", "std"),
-            n_participants=("participant", "nunique"),
-        )
-        .sort_values(["frequency_hz", "channel", "language_group"])
-    )
-
-    channels_of_interest = included.loc[included["channel"].isin(CHANNELS_OF_INTEREST)]
-
-    return {
-        "itpc_by_channel_line": channel_itpc,
-        "itpc_by_participant_condition_channel": cleaned,
-        "itpc_included_after_outlier_rejection": included,
-        "condition_stats_by_channel": condition_stats,
-        "group_stats_by_channel": group_stats,
-        "paired_rhythm_tests": paired_rhythm_tests(included),
-        "group_difference_tests": group_difference_tests(included),
-        "mixed_anova_approximation": mixed_anova_approximation(included),
-        "channels_of_interest": channels_of_interest,
-    }
+    return {"itpc_by_channel_line": channel_itpc}
 
 
 def run_replication(
@@ -157,8 +93,7 @@ def run_replication(
     step_seconds: float,
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    samples = discover_samples(data_root)
-    validate_design_coverage(samples)
+    samples = read_raw_data(data_root)
 
     all_rows: list[dict] = []
     errors: list[dict] = []
@@ -173,18 +108,18 @@ def run_replication(
         if error is not None:
             errors.append(error)
 
-    metadata = pd.DataFrame(
-        [
-            {
-                "participant": sample.participant,
-                "line": sample.line,
-                "rhythm_condition": sample.rhythm_condition.value,
-                "language_group": sample.language_group.value,
-            }
-            for sample in samples
-        ]
-    )
-    metadata.to_csv(output_dir / "metadata.csv", index=False)
+    # metadata = pd.DataFrame(
+    #     [
+    #         {
+    #             "participant": sample.participant,
+    #             "line": sample.line,
+    #             "rhythm_condition": sample.rhythm_type.value,
+    #             "language_group": sample.language_understanding.value,
+    #         }
+    #         for sample in samples
+    #     ]
+    # )
+    # metadata.to_csv(output_dir / "metadata.csv", index=False)
     pd.DataFrame(errors).to_csv(output_dir / "load_errors.csv", index=False)
     if errors:
         raise RuntimeError(
@@ -194,9 +129,11 @@ def run_replication(
     channel_itpc = pd.DataFrame(all_rows)
     if channel_itpc.empty:
         raise RuntimeError("No ITPC rows were produced; see load_errors.csv")
-
-    for name, frame in summarize_outputs(channel_itpc).items():
-        frame.to_csv(output_dir / f"{name}.csv", index=False, float_format=CSV_FLOAT_FORMAT)
+    channel_itpc.to_csv(
+        output_dir / "itpc_by_channel_line.csv",
+        index=False,
+        float_format=CSV_FLOAT_FORMAT,
+    )
 
     print(f"Wrote replication outputs to {output_dir}")
 

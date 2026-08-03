@@ -7,14 +7,8 @@ import mne
 import numpy as np
 import pandas as pd
 
-from adapt_eeg.plv_peak.design import (
-    EXPECTED_CHANNELS,
-    FREQUENCIES_HZ,
-    PaperSample,
-    discover_samples,
-    read_eeglab_sample,
-    validate_design_coverage,
-)
+from adapt_eeg.constants import FREQUENCIES as FREQUENCY_BY_NAME, N_CHANNELS
+from adapt_eeg.data_reader import Sample, read_raw_data
 from adapt_eeg.plv_peak.peaks import (
     PEAK_WINDOW_SECONDS,
     PEAKS_PER_EPOCH,
@@ -37,8 +31,8 @@ CSV_FLOAT_FORMAT = "%.6f"
 def _pick_eeg_channels(inst: mne.io.BaseRaw) -> list[str]:
     picks = mne.pick_types(inst.info, eeg=True, exclude=[])
     channel_names = [inst.ch_names[pick] for pick in picks]
-    if len(channel_names) != EXPECTED_CHANNELS:
-        print(f"Warning: expected {EXPECTED_CHANNELS} EEG channels, found {len(channel_names)}")
+    if len(channel_names) != N_CHANNELS:
+        print(f"Warning: expected {N_CHANNELS} EEG channels, found {len(channel_names)}")
     return channel_names
 
 
@@ -52,7 +46,7 @@ def _alignment_is_valid(first_peak_offsets: pd.DataFrame, line: int) -> tuple[bo
 
 
 def analyze_sample(
-    sample: PaperSample,
+    sample: Sample,
     audio_root: Path,
     window_radius: float,
     peaks_per_epoch: int,
@@ -74,7 +68,7 @@ def analyze_sample(
         ]
 
     try:
-        raw = read_eeglab_sample(sample)
+        raw = sample.data
     except Exception as exc:
         return [], [
             {
@@ -108,7 +102,7 @@ def analyze_sample(
 
     rows: list[dict] = []
     skipped: list[dict] = []
-    for frequency_hz in FREQUENCIES_HZ:
+    for frequency_hz in (FREQUENCY_BY_NAME["POEM"],):
         try:
             eeg_phases = channel_phase_signal(
                 raw_eeg,
@@ -184,8 +178,8 @@ def analyze_sample(
                     {
                         "participant": sample.participant,
                         "line": sample.line,
-                        "rhythm_condition": sample.rhythm_condition.value,
-                        "language_group": sample.language_group.value,
+                        "rhythm_condition": sample.rhythm_type.value,
+                        "language_group": sample.language_understanding.value,
                         "frequency_hz": frequency_hz,
                         "peak_index": window.peak_index,
                         "peak_seconds": window.peak_seconds,
@@ -288,8 +282,7 @@ def run_peak_plv(
     padding_seconds: float = 3.0,
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    samples = discover_samples(data_root)
-    validate_design_coverage(samples)
+    samples = read_raw_data(data_root)
     first_peak_offsets = infer_first_peak_offsets(audio_root)
 
     all_rows: list[dict] = []
@@ -314,8 +307,8 @@ def run_peak_plv(
             {
                 "participant": sample.participant,
                 "line": sample.line,
-                "rhythm_condition": sample.rhythm_condition.value,
-                "language_group": sample.language_group.value,
+                "rhythm_condition": sample.rhythm_type.value,
+                "language_group": sample.language_understanding.value,
                 "set_path": str(sample.set_path),
             }
             for sample in samples
