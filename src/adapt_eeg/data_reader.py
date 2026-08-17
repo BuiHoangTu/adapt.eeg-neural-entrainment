@@ -380,6 +380,18 @@ class Sample(SampleMetadata, BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     data: Any
+    
+    @classmethod
+    def from_auto_label(cls, participant: int, line: int, data: Any):
+        return cls(
+            participant=participant,
+            line=line,
+            set_path="",
+            fdt_path="",
+            rhythm_type=RhythmType.from_line(line),
+            language_understanding=LanguageUnderstanding.from_participant(participant),
+            data=data,
+        )
 
 
 def read_unepoch_sample(sample: SampleMetadata):
@@ -398,11 +410,18 @@ def read_unepoch_sample(sample: SampleMetadata):
             data=raw,
         )
 
+def read_merge_epoched_samples(path: Path | str):
+    path = Path(path)
+    
+    metadatas = build_metadata(path)
+    samples = [read_unepoch_sample(metadata) for metadata in metadatas]
+    
+    return samples
 
 def read_raw_data(data_root: str | PathLike):
     data_root = Path(data_root)
 
-    samples = []
+    samples: list[Sample] = []
 
     for verse_dir in data_root.glob("v*"):
         verse_match = re.fullmatch(r"v(\d+)", verse_dir.name)

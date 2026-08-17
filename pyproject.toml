@@ -12,6 +12,7 @@ dependencies = [
     "pandas",
     "scipy",
     "scikit-learn",
+    "matplotlib",
     "XlsxWriter"
 ]
 

@@ -10,6 +10,7 @@ raw/itpc-30event-good/.gitkeep
 __pycache__/
 *.py[cod]
 *.egg-info/
+build/
 
 # generated output
 results

@@ -9,6 +9,7 @@ from scipy import stats
 
 from adapt_eeg.constants import IRREGULAR_LINES, REGULAR_LINES
 from adapt_eeg.replicate.stats import reject_studentized_residuals
+from adapt_eeg.utils.visualization import write_itpc_visualizations
 
 CSV_FLOAT_FORMAT = "%.6f"
 
@@ -180,6 +181,7 @@ def write_paper_tables(results_dir: Path) -> None:
     }
     for filename, frame in outputs.items():
         frame.to_csv(results_dir / filename, index=False, float_format=CSV_FLOAT_FORMAT)
+    write_itpc_visualizations(results_dir)
 
 
 def build_parser() -> argparse.ArgumentParser:

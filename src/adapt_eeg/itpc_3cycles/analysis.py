@@ -11,6 +11,7 @@ from adapt_eeg.replicate.analysis import (
     paper_table_2,
     paper_table_3,
 )
+from adapt_eeg.utils.visualization import write_itpc_visualizations
 
 CSV_FLOAT_FORMAT = "%.6f"
 
@@ -30,6 +31,7 @@ def write_paper_tables(results_dir: Path) -> None:
     }
     for filename, frame in outputs.items():
         frame.to_csv(results_dir / filename, index=False, float_format=CSV_FLOAT_FORMAT)
+    write_itpc_visualizations(results_dir, excluded_lines={8, 9})
 
 
 def build_parser() -> argparse.ArgumentParser:
