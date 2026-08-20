@@ -22,4 +22,6 @@ where = ["src"]
 [project.optional-dependencies]
 dev = [
     "jupyterlab",
+    "librosa",
+    "pydub"
 ]
