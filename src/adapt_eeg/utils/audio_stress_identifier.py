@@ -55,9 +55,9 @@ class AnalysisParams:
     prominence_baseline_quantile: float = 0.25
 
     # Stress weights
-    pitch_weight: float = 0.333
-    intensity_weight: float = 0.333
-    duration_weight: float = 0.333
+    pitch_weight: float = 0.5
+    intensity_weight: float = 0.3
+    duration_weight: float = 0.2
 
     # Final classification
     stress_score_threshold: float = 0.50
@@ -447,17 +447,10 @@ def calculate_local_prominences(
     )
 
 
-# ============================================================
-# NORMALIZATION
-# ============================================================
-
-
 def _robust_zscore(
     values: np.ndarray,
 ) -> np.ndarray:
-    """Std can be distorted by many outliers in audio
-    
-    """
+    """Std can be distorted by many outliers in audio"""
 
     values = np.asarray(values, dtype=np.float64)
 
@@ -631,20 +624,17 @@ def detect_stressed_syllables(
         sound,
         pitch_time_step_s=params.pitch_time_step_s,
         pitch_floor_hz=params.pitch_floor_hz,
-        pitch_ceiling_hz=params.pitch_ceiling_hz
+        pitch_ceiling_hz=params.pitch_ceiling_hz,
     )
 
     nucleus_candidates = detect_nucleus_candidates(
         intensity,
         params.silence_threshold_relative_db,
-        params.min_nucleus_prominence_db
+        params.min_nucleus_prominence_db,
     )
 
     nuclei = filter_voiced_nuclei(
-        nucleus_candidates,
-        f0,
-        params.voicing_half_window_s,
-        params.min_voiced_fraction
+        nucleus_candidates, f0, params.voicing_half_window_s, params.min_voiced_fraction
     )
 
     intervals = estimate_syllable_intervals(
@@ -654,17 +644,13 @@ def detect_stressed_syllables(
     )
 
     syllables = measure_syllables(
-        intervals,
-        samples,
-        sample_rate,
-        f0,
-        params.pitch_percentile
+        intervals, samples, sample_rate, f0, params.pitch_percentile
     )
 
     prominences = calculate_local_prominences(
         syllables,
         params.prominence_neighbor_radius,
-        params.prominence_baseline_quantile
+        params.prominence_baseline_quantile,
     )
 
     normalized_prominences = normalize_prominences(prominences)
