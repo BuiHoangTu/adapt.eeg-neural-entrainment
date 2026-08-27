@@ -1,101 +1,690 @@
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Union
 
 import numpy as np
+import parselmouth
 from pydub import AudioSegment
-from scipy.signal import hilbert, butter, sosfiltfilt, find_peaks
+from scipy.signal import find_peaks
 
 
-def stress_identify(
-    audio,
-    lowpass_hz=8.0,
-    min_peak_distance_s=0.20,
-    prominence=0.05,
-):
+@dataclass(frozen=True)
+class Contour:
+    times: np.ndarray
+    values: np.ndarray
 
-    # ============================================================
-    # INPUT
-    # Can be either:
-    #   - a file path
-    #   - a pydub.AudioSegment
-    # ============================================================
 
-    audio_input = audio
+@dataclass(frozen=True)
+class Nucleus:
+    time: float
+    intensity_db: float
+    prominence_db: float
 
-    # Example alternative:
-    #
-    # audio_input = AudioSegment.from_file("poem.wav")
 
-    # ============================================================
-    # LOAD AUDIO
-    # ============================================================
+@dataclass(frozen=True)
+class Syllable:
+    start: float
+    nucleus: float
+    end: float
+
+    pitch_hz: float
+    intensity_db: float
+    duration_s: float
+
+
+@dataclass(frozen=True)
+class AnalysisParams:
+    # Intensity / nucleus detection
+    intensity_floor_hz: float = 50.0
+    silence_threshold_relative_db: float = -25.0
+    min_nucleus_prominence_db: float = 2.0
+
+    # F0 / voicing
+    pitch_floor_hz: float = 75.0
+    pitch_ceiling_hz: float = 500.0
+    pitch_time_step_s: float = 0.01
+
+    voicing_half_window_s: float = 0.04
+    min_voiced_fraction: float = 0.50
+
+    # Syllable-level pitch measurement
+    pitch_percentile: float = 90.0
+
+    # Local prominence
+    prominence_neighbor_radius: int = 3
+    prominence_baseline_quantile: float = 0.25
+
+    # Stress weights
+    pitch_weight: float = 0.333
+    intensity_weight: float = 0.333
+    duration_weight: float = 0.333
+
+    # Final classification
+    stress_score_threshold: float = 0.50
+    require_pitch_intensity_cooccurrence: bool = True
+
+
+DEFAULT_PARAMS = AnalysisParams()
+
+
+AudioInput = Union[str, Path, AudioSegment]
+SyllableInterval = tuple[float, float, float]
+Prominence = tuple[float, float, float]
+Weights = tuple[float, float, float]
+
+
+# ============================================================
+# AUDIO
+# ============================================================
+
+
+def load_audio(
+    audio_input: AudioInput,
+) -> tuple[parselmouth.Sound, np.ndarray, int]:
+    """
+    Load audio, convert to mono, and return:
+        Praat Sound,
+        normalized waveform samples,
+        sample rate.
+    """
 
     if isinstance(audio_input, AudioSegment):
         audio = audio_input
-
-    elif isinstance(audio_input, (str, Path)):
-        audio = AudioSegment.from_file(str(audio_input))
-
     else:
-        raise TypeError("audio_input must be a file path or pydub.AudioSegment")
+        audio = AudioSegment.from_file(audio_input)
 
-    # Convert to mono
+    # convert to mono
     audio = audio.set_channels(1)
 
-    fs = audio.frame_rate
+    sample_rate = audio.frame_rate
+    samples = np.asarray(audio.get_array_of_samples(), dtype=np.float64)
 
-    # pydub -> NumPy
-    waveform = np.array(audio.get_array_of_samples(), dtype=np.float64)
+    # Normalize. 8 * n_byte_per_sample - 1 (sign bit <+/->). 2^n_bit
+    full_scale = float(1 << (8 * audio.sample_width - 1))
+    samples = samples / full_scale
 
-    # Normalize waveform
-    max_abs = np.max(np.abs(waveform))
+    sound = parselmouth.Sound(samples, sampling_frequency=sample_rate)
 
-    if max_abs > 0:
-        waveform /= max_abs
+    return sound, samples, sample_rate
 
-    # ============================================================
-    # HILBERT ENVELOPE
-    # ============================================================
 
-    analytic_signal = hilbert(waveform)
+def get_intensity_contour(
+    sound: parselmouth.Sound,
+    intensity_floor_hz: float,
+) -> Contour:
 
-    envelope = np.abs(analytic_signal)
-
-    # ============================================================
-    # LOW-PASS FILTER THE ENVELOPE
-    # ============================================================
-
-    sos = butter(N=4, Wn=lowpass_hz, btype="lowpass", fs=fs, output="sos")
-
-    envelope_filtered = sosfiltfilt(sos, envelope)
-
-    # Remove possible tiny negative numerical values
-    envelope_filtered = np.maximum(envelope_filtered, 0)
-
-    # Normalize to 0–1
-    env_min = envelope_filtered.min()
-    env_max = envelope_filtered.max()
-
-    if env_max > env_min:
-        envelope_filtered = (envelope_filtered - env_min) / (env_max - env_min)
-
-    # ============================================================
-    # FIND CANDIDATE STRESS PEAKS
-    # ============================================================
-
-    min_distance_samples = int(min_peak_distance_s * fs)
-
-    peaks, properties = find_peaks(
-        envelope_filtered, distance=max(1, min_distance_samples), prominence=prominence
+    intensity = sound.to_intensity(
+        minimum_pitch=intensity_floor_hz,
+        time_step=None,
+        subtract_mean=True,
     )
 
-    # ============================================================
-    # CONVERT PEAK LOCATIONS TO TIME
-    # ============================================================
+    return Contour(
+        times=np.asarray(intensity.xs(), dtype=np.float64),
+        values=np.asarray(intensity.values[0], dtype=np.float64),
+    )
 
-    time = np.arange(len(waveform)) / fs
 
-    stress_times = peaks / fs
+def get_f0_contour(
+    sound: parselmouth.Sound,
+    pitch_time_step_s,
+    pitch_floor_hz,
+    pitch_ceiling_hz,
+) -> Contour:
 
-    stress_strength = envelope_filtered[peaks]
+    pitch = sound.to_pitch_ac(
+        time_step=pitch_time_step_s,
+        pitch_floor=pitch_floor_hz,
+        pitch_ceiling=pitch_ceiling_hz,
+    )
 
-    return stress_times, stress_strength
+    times = np.asarray(pitch.xs(), dtype=np.float64)
+
+    f0 = np.asarray(pitch.selected_array["frequency"], dtype=np.float64)
+
+    # Praat represents unvoiced frames as 0.
+    f0[f0 <= 0] = np.nan
+
+    return Contour(
+        times=times,
+        values=f0,
+    )
+
+
+def detect_nucleus_candidates(
+    intensity: Contour,
+    silence_threshold_relative_db,
+    min_nucleus_prominence_db,
+) -> list[Nucleus]:
+
+    if len(intensity.values) == 0:
+        return []
+
+    reference_db = np.nanquantile(intensity.values, 0.99)
+
+    minimum_height_db = reference_db + silence_threshold_relative_db
+
+    peak_indices, properties = find_peaks(
+        intensity.values,
+        height=minimum_height_db,
+        prominence=min_nucleus_prominence_db,
+    )
+
+    prominences = properties["prominences"]
+
+    return [
+        Nucleus(
+            time=float(intensity.times[index]),
+            intensity_db=float(intensity.values[index]),
+            prominence_db=float(prominence),
+        )
+        for index, prominence in zip(peak_indices, prominences)
+    ]
+
+
+def filter_voiced_nuclei(
+    nuclei: list[Nucleus], f0: Contour, voicing_half_window_s, min_voiced_fraction
+) -> list[Nucleus]:
+
+    voiced = []
+
+    for nucleus in nuclei:
+        mask = np.abs(f0.times - nucleus.time) <= voicing_half_window_s
+
+        local_f0 = f0.values[mask]
+
+        if len(local_f0) == 0:
+            continue
+
+        voiced_fraction = np.mean(np.isfinite(local_f0))
+
+        if voiced_fraction >= min_voiced_fraction:
+            voiced.append(nucleus)
+
+    return voiced
+
+
+def _lowest_intensity_time(
+    intensity: Contour,
+    start: float,
+    end: float,
+) -> float:
+
+    mask = (intensity.times >= start) & (intensity.times <= end)
+
+    indices = np.flatnonzero(mask)
+
+    if len(indices) == 0:
+        return (start + end) / 2.0
+
+    local_values = intensity.values[indices]
+
+    minimum_index = indices[np.nanargmin(local_values)]
+
+    return float(intensity.times[minimum_index])
+
+
+def estimate_syllable_intervals(
+    nuclei: list[Nucleus],
+    intensity: Contour,
+    audio_duration_s: float,
+) -> list[SyllableInterval]:
+    """
+    Return:
+        [(start, nucleus, end), ...]
+    """
+
+    if not nuclei:
+        return []
+
+    nuclei = sorted(nuclei, key=lambda n: n.time)
+
+    nucleus_times = [nucleus.time for nucleus in nuclei]
+
+    # Boundaries between neighbouring nuclei.
+    internal_boundaries = []
+
+    for left, right in zip(nucleus_times[:-1], nucleus_times[1:]):
+        boundary = _lowest_intensity_time(
+            intensity,
+            left,
+            right,
+        )
+
+        internal_boundaries.append(boundary)
+
+    # Left edge:
+    # choose lowest intensity between recording start
+    # and first nucleus.
+    first_boundary = _lowest_intensity_time(
+        intensity,
+        0.0,
+        nucleus_times[0],
+    )
+
+    # Right edge:
+    # choose lowest intensity between final nucleus
+    # and recording end.
+    last_boundary = _lowest_intensity_time(
+        intensity,
+        nucleus_times[-1],
+        audio_duration_s,
+    )
+
+    boundaries = [first_boundary] + internal_boundaries + [last_boundary]
+
+    return [
+        (
+            float(boundaries[i]),
+            float(nucleus_times[i]),
+            float(boundaries[i + 1]),
+        )
+        for i in range(len(nucleus_times))
+    ]
+
+
+def _measure_pitch(
+    start: float,
+    end: float,
+    f0: Contour,
+    percentile: float,
+) -> float:
+
+    mask = (f0.times >= start) & (f0.times <= end)
+
+    values = f0.values[mask]
+    values = values[np.isfinite(values)]
+
+    if len(values) == 0:
+        return np.nan
+
+    return float(np.percentile(values, percentile))
+
+
+def _measure_rms_db(
+    start: float,
+    end: float,
+    samples: np.ndarray,
+    sample_rate: int,
+) -> float:
+
+    start_index = max(0, round(start * sample_rate))
+
+    end_index = min(len(samples), round(end * sample_rate))
+
+    segment = samples[start_index:end_index]
+
+    if len(segment) == 0:
+        return np.nan
+
+    rms = np.sqrt(np.mean(segment**2))
+
+    if rms <= 0:
+        return np.nan
+
+    return float(20.0 * np.log10(rms))
+
+
+def measure_syllables(
+    intervals: list[SyllableInterval],
+    samples: np.ndarray,
+    sample_rate: int,
+    f0: Contour,
+    pitch_percentile,
+) -> list[Syllable]:
+
+    syllables = []
+
+    for start, nucleus, end in intervals:
+        duration = end - start
+
+        pitch = _measure_pitch(
+            start,
+            end,
+            f0,
+            pitch_percentile,
+        )
+
+        intensity = _measure_rms_db(
+            start,
+            end,
+            samples,
+            sample_rate,
+        )
+
+        syllables.append(
+            Syllable(
+                start=start,
+                nucleus=nucleus,
+                end=end,
+                pitch_hz=pitch,
+                intensity_db=intensity,
+                duration_s=duration,
+            )
+        )
+
+    return syllables
+
+
+def _local_prominence(
+    values: np.ndarray,
+    radius: int,
+    baseline_quantile: float,
+) -> np.ndarray:
+
+    prominences = np.full(
+        len(values),
+        np.nan,
+        dtype=np.float64,
+    )
+
+    for i, value in enumerate(values):
+        if not np.isfinite(value):
+            continue
+
+        left = max(0, i - radius)
+
+        right = min(len(values), i + radius + 1)
+
+        neighbors = np.concatenate(
+            [
+                values[left:i],
+                values[i + 1 : right],
+            ]
+        )
+
+        neighbors = neighbors[np.isfinite(neighbors)]
+
+        if len(neighbors) == 0:
+            continue
+
+        baseline = np.quantile(
+            neighbors,
+            baseline_quantile,
+        )
+
+        prominences[i] = value - baseline
+
+    return prominences
+
+
+def calculate_local_prominences(
+    syllables: list[Syllable],
+    prominence_neighbor_radius,
+    prominence_baseline_quantile,
+) -> list[Prominence]:
+
+    pitch = np.asarray([syllable.pitch_hz for syllable in syllables])
+
+    intensity = np.asarray([syllable.intensity_db for syllable in syllables])
+
+    duration = np.asarray([syllable.duration_s for syllable in syllables])
+
+    pitch_prominence = _local_prominence(
+        pitch,
+        prominence_neighbor_radius,
+        prominence_baseline_quantile,
+    )
+
+    intensity_prominence = _local_prominence(
+        intensity,
+        prominence_neighbor_radius,
+        prominence_baseline_quantile,
+    )
+
+    duration_prominence = _local_prominence(
+        duration,
+        prominence_neighbor_radius,
+        prominence_baseline_quantile,
+    )
+
+    return list(
+        zip(
+            pitch_prominence,
+            intensity_prominence,
+            duration_prominence,
+        )
+    )
+
+
+# ============================================================
+# NORMALIZATION
+# ============================================================
+
+
+def _robust_zscore(
+    values: np.ndarray,
+) -> np.ndarray:
+    """Std can be distorted by many outliers in audio
+    
+    """
+
+    values = np.asarray(values, dtype=np.float64)
+
+    result = np.full_like(values, np.nan)
+
+    valid = np.isfinite(values)
+
+    if not np.any(valid):
+        return result
+
+    valid_values = values[valid]
+
+    median = np.median(valid_values)
+
+    mad = np.median(np.abs(valid_values - median))
+
+    # Convert MAD to an estimate comparable to standard deviation.
+    scale = 1.4826 * mad
+
+    # Fallback if every prominence is nearly identical.
+    if scale <= np.finfo(float).eps:
+        scale = np.std(valid_values)
+
+    if scale <= np.finfo(float).eps:
+        result[valid] = 0.0
+        return result
+
+    result[valid] = (valid_values - median) / scale
+
+    return result
+
+
+def normalize_prominences(
+    prominences: list[Prominence],
+) -> list[Prominence]:
+
+    if not prominences:
+        return []
+
+    values = np.asarray(prominences, dtype=np.float64)
+
+    pitch_z = _robust_zscore(values[:, 0])
+
+    intensity_z = _robust_zscore(values[:, 1])
+
+    duration_z = _robust_zscore(values[:, 2])
+
+    return list(
+        zip(
+            pitch_z,
+            intensity_z,
+            duration_z,
+        )
+    )
+
+
+def _normalize_weights(
+    pitch_weight: float,
+    intensity_weight: float,
+    duration_weight: float,
+) -> Weights:
+
+    weights = np.asarray(
+        [
+            pitch_weight,
+            intensity_weight,
+            duration_weight,
+        ],
+        dtype=np.float64,
+    )
+
+    if np.any(weights < 0):
+        raise ValueError("Stress weights cannot be negative.")
+
+    total = weights.sum()
+
+    if total <= 0:
+        raise ValueError("At least one stress weight must be greater than zero.")
+
+    weights /= total
+
+    return tuple(weights)
+
+
+def calculate_stress_scores(
+    normalized_prominences: list[Prominence],
+    weights: Weights,
+) -> list[float]:
+    """
+    Missing features are ignored and the remaining
+    weights are renormalized for that syllable.
+    """
+
+    weights_array = np.asarray(weights, dtype=np.float64)
+
+    scores = []
+
+    for features in normalized_prominences:
+        features = np.asarray(features, dtype=np.float64)
+
+        valid = np.isfinite(features)
+
+        if not np.any(valid):
+            scores.append(np.nan)
+            continue
+
+        available_weights = weights_array[valid]
+
+        available_weights = available_weights / available_weights.sum()
+
+        score = np.sum(features[valid] * available_weights)
+
+        scores.append(float(score))
+
+    return scores
+
+
+def classify_stresses(
+    prominences: list[Prominence],
+    scores: list[float],
+    stress_score_threshold,
+    require_pitch_intensity_cooccurrence,
+) -> list[bool]:
+
+    stressed = []
+
+    for prominence, score in zip(prominences, scores):
+        pitch_prominence, intensity_prominence, _ = prominence
+
+        if not np.isfinite(score):
+            stressed.append(False)
+            continue
+
+        is_stressed = score >= stress_score_threshold
+
+        if require_pitch_intensity_cooccurrence:
+            is_stressed = (
+                is_stressed
+                and np.isfinite(pitch_prominence)
+                and np.isfinite(intensity_prominence)
+                and pitch_prominence > 0
+                and intensity_prominence > 0
+            )
+
+        stressed.append(bool(is_stressed))
+
+    return stressed
+
+
+def detect_stressed_syllables(
+    audio_input: AudioInput,
+    params: AnalysisParams = DEFAULT_PARAMS,
+) -> list[Syllable]:
+    """
+    Detect stressed syllables from an audio recording.
+
+    Ultimate output:
+        list[Syllable]
+
+    Only syllables classified as stressed are returned.
+    """
+
+    sound, samples, sample_rate = load_audio(audio_input)
+
+    intensity = get_intensity_contour(
+        sound,
+        params.intensity_floor_hz,
+    )
+
+    f0 = get_f0_contour(
+        sound,
+        pitch_time_step_s=params.pitch_time_step_s,
+        pitch_floor_hz=params.pitch_floor_hz,
+        pitch_ceiling_hz=params.pitch_ceiling_hz
+    )
+
+    nucleus_candidates = detect_nucleus_candidates(
+        intensity,
+        params.silence_threshold_relative_db,
+        params.min_nucleus_prominence_db
+    )
+
+    nuclei = filter_voiced_nuclei(
+        nucleus_candidates,
+        f0,
+        params.voicing_half_window_s,
+        params.min_voiced_fraction
+    )
+
+    intervals = estimate_syllable_intervals(
+        nuclei,
+        intensity,
+        sound.duration,
+    )
+
+    syllables = measure_syllables(
+        intervals,
+        samples,
+        sample_rate,
+        f0,
+        params.pitch_percentile
+    )
+
+    prominences = calculate_local_prominences(
+        syllables,
+        params.prominence_neighbor_radius,
+        params.prominence_baseline_quantile
+    )
+
+    normalized_prominences = normalize_prominences(prominences)
+
+    weights = _normalize_weights(
+        params.pitch_weight,
+        params.intensity_weight,
+        params.duration_weight,
+    )
+
+    scores = calculate_stress_scores(
+        normalized_prominences,
+        weights,
+    )
+
+    stress_flags = classify_stresses(
+        prominences,
+        scores,
+        params.stress_score_threshold,
+        params.require_pitch_intensity_cooccurrence,
+    )
+
+    return [syllable for syllable, stressed in zip(syllables, stress_flags) if stressed]
