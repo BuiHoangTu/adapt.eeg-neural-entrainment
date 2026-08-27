@@ -13,7 +13,8 @@ dependencies = [
     "scipy",
     "scikit-learn",
     "matplotlib",
-    "XlsxWriter"
+    "XlsxWriter",
+    "praat-parselmouth",
 ]
 
 [tool.setuptools.packages.find]
