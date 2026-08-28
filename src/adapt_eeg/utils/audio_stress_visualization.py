@@ -31,7 +31,7 @@ def _audio_to_data_url(audio):
     return f"data:{mime_type};base64,{encoded}"
 
 
-def waveform_player(
+def waveform_render(
     audio,
     timestamps,
     window_seconds=20,
