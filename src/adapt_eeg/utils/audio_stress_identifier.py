@@ -1,6 +1,6 @@
+import itertools
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 import parselmouth
@@ -67,14 +67,12 @@ class AnalysisParams:
 DEFAULT_PARAMS = AnalysisParams()
 
 
-AudioInput = Union[str, Path, AudioSegment]
 SyllableInterval = tuple[float, float, float]
 Prominence = tuple[float, float, float]
-Weights = tuple[float, float, float]
 
 
 def load_audio(
-    audio_input: AudioInput,
+    audio_input: str | Path | AudioSegment,
 ) -> tuple[parselmouth.Sound, np.ndarray, int]:
     """
     Load audio, convert to mono, and return:
@@ -239,7 +237,7 @@ def estimate_syllable_intervals(
     # Boundaries between neighbouring nuclei.
     internal_boundaries = []
 
-    for left, right in zip(nucleus_times[:-1], nucleus_times[1:]):
+    for left, right in itertools.pairwise(nucleus_times):
         boundary = _lowest_intensity_time(
             intensity,
             left,
@@ -506,7 +504,7 @@ def _normalize_weights(
     pitch_weight: float,
     intensity_weight: float,
     duration_weight: float,
-) -> Weights:
+):
 
     weights = np.asarray(
         [
@@ -527,12 +525,12 @@ def _normalize_weights(
 
     weights /= total
 
-    return tuple(weights)
+    return weights[0], weights[1], weights[2]
 
 
 def calculate_stress_scores(
     normalized_prominences: list[Prominence],
-    weights: Weights,
+    weights: tuple[float, float, float],
 ) -> list[float]:
     """
     Missing features are ignored and the remaining
@@ -596,7 +594,7 @@ def classify_stresses(
 
 
 def detect_stressed_syllables(
-    audio_input: AudioInput,
+    audio_input: str | Path | AudioSegment,
     params: AnalysisParams = DEFAULT_PARAMS,
 ) -> list[Syllable]:
     """
