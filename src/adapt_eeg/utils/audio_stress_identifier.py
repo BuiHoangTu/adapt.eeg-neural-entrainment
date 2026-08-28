@@ -73,11 +73,6 @@ Prominence = tuple[float, float, float]
 Weights = tuple[float, float, float]
 
 
-# ============================================================
-# AUDIO
-# ============================================================
-
-
 def load_audio(
     audio_input: AudioInput,
 ) -> tuple[parselmouth.Sound, np.ndarray, int]:
