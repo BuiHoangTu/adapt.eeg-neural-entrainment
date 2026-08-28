@@ -47,6 +47,8 @@ class AnalysisParams:
     voicing_half_window_s: float = 0.04
     min_voiced_fraction: float = 0.50
 
+    min_pause_duration_s: float = 0.3
+
     # Syllable-level pitch measurement
     pitch_percentile: float = 90.0
 
@@ -144,22 +146,24 @@ def get_f0_contour(
     )
 
 
+def get_silence_threshold_db(intensity, silence_threshold_relative_db):
+    reference_db = np.nanquantile(intensity.values, 0.99)
+
+    return reference_db + silence_threshold_relative_db
+
+
 def detect_nucleus_candidates(
     intensity: Contour,
-    silence_threshold_relative_db,
+    silence_threshold_db,
     min_nucleus_prominence_db,
 ) -> list[Nucleus]:
 
     if len(intensity.values) == 0:
         return []
 
-    reference_db = np.nanquantile(intensity.values, 0.99)
-
-    minimum_height_db = reference_db + silence_threshold_relative_db
-
     peak_indices, properties = find_peaks(
         intensity.values,
-        height=minimum_height_db,
+        height=silence_threshold_db,
         prominence=min_nucleus_prominence_db,
     )
 
@@ -217,10 +221,82 @@ def _lowest_intensity_time(
     return float(intensity.times[minimum_index])
 
 
+def _find_pause_between(
+    intensity: Contour,
+    start: float,
+    end: float,
+    silence_threshold_db: float,
+    min_pause_duration_s: float,
+) -> tuple[float, float] | None:
+    """
+    Find a sufficiently long continuous low-intensity region.
+
+    Returns:
+        (pause_start, pause_end)
+
+    or None if no qualifying pause exists.
+    """
+
+    mask = (intensity.times >= start) & (intensity.times <= end)
+
+    times = intensity.times[mask]
+    values = intensity.values[mask]
+
+    if len(times) < 2:
+        return None
+
+    silent = values <= silence_threshold_db
+
+    # Detect beginnings / endings of continuous silent runs.
+    padded = np.concatenate(
+        [
+            [False],
+            silent,
+            [False],
+        ]
+    )
+
+    changes = np.diff(padded.astype(int))
+
+    run_starts = np.flatnonzero(changes == 1)
+
+    run_ends = np.flatnonzero(changes == -1) - 1
+
+    if len(run_starts) == 0:
+        return None
+
+    time_step = float(np.median(np.diff(times)))
+
+    valid_pauses = []
+
+    for start_index, end_index in zip(run_starts, run_ends):
+        duration = times[end_index] - times[start_index] + time_step
+
+        if duration >= min_pause_duration_s:
+            valid_pauses.append(
+                (
+                    float(times[start_index]),
+                    float(times[end_index]),
+                    float(duration),
+                )
+            )
+
+    if not valid_pauses:
+        return None
+
+    # If somehow several pauses occur between two nuclei,
+    # use the longest one.
+    pause_start, pause_end, _ = max(valid_pauses, key=lambda pause: pause[2])
+
+    return pause_start, pause_end
+
+
 def estimate_syllable_intervals(
     nuclei: list[Nucleus],
     intensity: Contour,
     audio_duration_s: float,
+    min_pause_duration_s: float,
+    silence_threshold_db: float,
 ) -> list[SyllableInterval]:
     """
     Return:
@@ -234,43 +310,56 @@ def estimate_syllable_intervals(
 
     nucleus_times = [nucleus.time for nucleus in nuclei]
 
-    # Boundaries between neighbouring nuclei.
-    internal_boundaries = []
+    starts = np.zeros(len(nucleus_times), dtype=float)
+    ends = np.zeros(len(nucleus_times), dtype=float)
 
-    for left, right in itertools.pairwise(nucleus_times):
-        boundary = _lowest_intensity_time(
-            intensity,
-            left,
-            right,
-        )
-
-        internal_boundaries.append(boundary)
-
-    # Left edge:
-    # choose lowest intensity between recording start
-    # and first nucleus.
-    first_boundary = _lowest_intensity_time(
+    starts[0] = _lowest_intensity_time(
         intensity,
         0.0,
         nucleus_times[0],
     )
 
-    # Right edge:
-    # choose lowest intensity between final nucleus
-    # and recording end.
-    last_boundary = _lowest_intensity_time(
+    ends[-1] = _lowest_intensity_time(
         intensity,
         nucleus_times[-1],
         audio_duration_s,
     )
 
-    boundaries = [first_boundary] + internal_boundaries + [last_boundary]
+    for i in range(len(nucleus_times) - 1):
+        left_nucleus = nucleus_times[i]
+        right_nucleus = nucleus_times[i + 1]
+
+        pause = _find_pause_between(
+            intensity,
+            left_nucleus,
+            right_nucleus,
+            silence_threshold_db,
+            min_pause_duration_s,
+        )
+
+        if pause is not None:
+            pause_start, pause_end = pause
+
+            ends[i] = pause_start
+            starts[i + 1] = pause_end
+
+        else:
+            # Normal case:
+            # adjacent syllables share the intensity valley.
+            boundary = _lowest_intensity_time(
+                intensity,
+                left_nucleus,
+                right_nucleus,
+            )
+
+            ends[i] = boundary
+            starts[i + 1] = boundary
 
     return [
         (
-            float(boundaries[i]),
+            float(starts[i]),
             float(nucleus_times[i]),
-            float(boundaries[i + 1]),
+            float(ends[i]),
         )
         for i in range(len(nucleus_times))
     ]
@@ -620,9 +709,13 @@ def detect_stressed_syllables(
         pitch_ceiling_hz=params.pitch_ceiling_hz,
     )
 
+    silence_threshold_db = get_silence_threshold_db(
+        intensity, params.silence_threshold_relative_db
+    )
+
     nucleus_candidates = detect_nucleus_candidates(
         intensity,
-        params.silence_threshold_relative_db,
+        silence_threshold_db,
         params.min_nucleus_prominence_db,
     )
 
@@ -634,6 +727,8 @@ def detect_stressed_syllables(
         nuclei,
         intensity,
         sound.duration,
+        params.min_pause_duration_s,
+        silence_threshold_db,
     )
 
     syllables = measure_syllables(
