@@ -5,7 +5,6 @@ import mimetypes
 import uuid
 from pathlib import Path
 
-from IPython.display import HTML, display
 from pydub import AudioSegment
 
 
@@ -39,6 +38,8 @@ def waveform_player(
     height=160,
 ):
     """
+    Render html of audio with markers at time stamps. Use for long audio.
+    
     Parameters
     ----------
     audio:
@@ -321,4 +322,4 @@ def waveform_player(
     </script>
     """
 
-    display(HTML(html))
+    return html
