@@ -229,10 +229,14 @@ def _find_pause_between(
     min_pause_duration_s: float,
 ) -> tuple[float, float] | None:
     """
-    Find a sufficiently long continuous low-intensity region.
+    Find a pause between 2 nucleus "start" and "end".
+
+    Params:
+        silence_threshold_db: the intensity of background noise
+        min_pause_duration_s: the minimum length of pause to be valid
 
     Returns:
-        (pause_start, pause_end)
+        (pause_start, pause_end):
 
     or None if no qualifying pause exists.
     """
@@ -242,51 +246,22 @@ def _find_pause_between(
     times = intensity.times[mask]
     values = intensity.values[mask]
 
-    if len(times) < 2:
+    if len(times) == 0:
         return None
 
-    silent = values <= silence_threshold_db
+    silent_indices = np.flatnonzero(values <= silence_threshold_db)
 
-    # Detect beginnings / endings of continuous silent runs.
-    padded = np.concatenate(
-        [
-            [False],
-            silent,
-            [False],
-        ]
-    )
-
-    changes = np.diff(padded.astype(int))
-
-    run_starts = np.flatnonzero(changes == 1)
-
-    run_ends = np.flatnonzero(changes == -1) - 1
-
-    if len(run_starts) == 0:
+    if len(silent_indices) == 0:
         return None
 
-    time_step = float(np.median(np.diff(times)))
+    pause_start = float(times[silent_indices[0]])
 
-    valid_pauses = []
+    pause_end = float(times[silent_indices[-1]])
 
-    for start_index, end_index in zip(run_starts, run_ends):
-        duration = times[end_index] - times[start_index] + time_step
+    pause_duration = pause_end - pause_start
 
-        if duration >= min_pause_duration_s:
-            valid_pauses.append(
-                (
-                    float(times[start_index]),
-                    float(times[end_index]),
-                    float(duration),
-                )
-            )
-
-    if not valid_pauses:
+    if pause_duration < min_pause_duration_s:
         return None
-
-    # If somehow several pauses occur between two nuclei,
-    # use the longest one.
-    pause_start, pause_end, _ = max(valid_pauses, key=lambda pause: pause[2])
 
     return pause_start, pause_end
 
