@@ -1,6 +1,6 @@
-import itertools
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TypeAlias
 
 import numpy as np
 import parselmouth
@@ -69,8 +69,11 @@ class AnalysisParams:
 DEFAULT_PARAMS = AnalysisParams()
 
 
-SyllableInterval = tuple[float, float, float]
-Prominence = tuple[float, float, float]
+SyllableInterval: TypeAlias = tuple[float, float, float]
+"""Tuple of (start_time, nuclei_time, end_time) in seconds"""
+
+Prominence: TypeAlias = tuple[float, float, float]
+"""Tuple of (pitch_in_hz, intensity_in_db, duration_in_seconds)"""
 
 
 def load_audio(
