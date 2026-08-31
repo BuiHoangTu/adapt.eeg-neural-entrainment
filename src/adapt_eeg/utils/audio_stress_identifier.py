@@ -24,14 +24,17 @@ class Nucleus:
 @dataclass(frozen=True)
 class Syllable:
     start: float
-    nucleus: float
+    _nucleus: Nucleus = field(repr=False)
+    nucleus: float = field(init=False)
     end: float
 
     pitch_hz: float
     intensity_db: float
+
     duration_s: float = field(init=False)
 
-    def __post_init__(self) -> None:
+    def __post_init__(self):
+        object.__setattr__(self, "nucleus", self._nucleus.time)
         object.__setattr__(self, "duration_s", self.end - self.start)
 
 
@@ -78,8 +81,8 @@ class AnalysisParams:
 DEFAULT_PARAMS = AnalysisParams()
 
 
-SyllableInterval: TypeAlias = tuple[float, float, float]
-"""Tuple of (start_time, nuclei_time, end_time) in seconds"""
+SyllableInterval: TypeAlias = tuple[float, Nucleus, float]
+"""Tuple of (start_time, nucleus, end_time)"""
 
 StressEvidence: TypeAlias = tuple[float, float, float]
 """Tuple of (pitch_prominence_hz, intensity_prominence_db, duration_prominence_s)"""
@@ -352,10 +355,10 @@ def estimate_syllable_intervals(
     return [
         (
             float(starts[i]),
-            float(nucleus_times[i]),
+            nuclei[i],
             float(ends[i]),
         )
-        for i in range(len(nucleus_times))
+        for i in range(len(nuclei))
     ]
 
 
@@ -429,7 +432,7 @@ def measure_syllables(
         syllables.append(
             Syllable(
                 start=start,
-                nucleus=nucleus,
+                _nucleus=nucleus,
                 end=end,
                 pitch_hz=pitch,
                 intensity_db=intensity,
@@ -457,7 +460,6 @@ def _neighbor_values(
 
 def _measure_intensity_prominence(
     syllable: Syllable,
-    nucleus: Nucleus,
     intensity: Contour,
     prominence_context_s: float,
     silence_threshold_db: float,
@@ -470,9 +472,9 @@ def _measure_intensity_prominence(
     )
 
     if len(neighbor_values) == 0:
-        return float(syllable.intensity_db - silence_threshold_db)
+        return float(syllable._nucleus.intensity_db - silence_threshold_db)
 
-    return float(nucleus.intensity_db - np.nanmedian(neighbor_values))
+    return float(syllable._nucleus.intensity_db - np.nanmedian(neighbor_values))
 
 
 def _measure_pitch_prominence(
@@ -541,7 +543,6 @@ def _measure_duration_prominences(
 
 def calculate_stress_evidence(
     syllables: list[Syllable],
-    nuclei: list[Nucleus],
     f0: Contour,
     intensity: Contour,
     prominence_context_s: float,
@@ -566,16 +567,14 @@ def calculate_stress_evidence(
             ),
             _measure_intensity_prominence(
                 syllable,
-                nucleus,
                 intensity,
                 prominence_context_s,
                 silence_threshold_db,
             ),
             float(duration_prominence),
         )
-        for syllable, nucleus, duration_prominence in zip(
+        for syllable, duration_prominence in zip(
             syllables,
-            nuclei,
             duration_prominences,
         )
     ]
@@ -775,7 +774,6 @@ def detect_stressed_syllables(
 
     evidence = calculate_stress_evidence(
         syllables,
-        nuclei,
         f0,
         intensity,
         params.prominence_context_s,
