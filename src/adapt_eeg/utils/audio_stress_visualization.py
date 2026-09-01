@@ -2,7 +2,6 @@ import base64
 import io
 import json
 import mimetypes
-import uuid
 from pathlib import Path
 
 from pydub import AudioSegment
@@ -80,7 +79,7 @@ def waveform_render(
 
     markers_json = json.dumps(markers)
 
-    uid = uuid.uuid4().hex
+    uid = "random_uid"
 
     waveform_id = f"waveform_{uid}"
     button_id = f"button_{uid}"
