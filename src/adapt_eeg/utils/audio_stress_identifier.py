@@ -313,21 +313,16 @@ def estimate_syllable_intervals(
     starts = np.zeros(len(nucleus_times), dtype=float)
     ends = np.zeros(len(nucleus_times), dtype=float)
 
-    starts[0] = _lowest_intensity_time(
-        intensity,
-        0.0,
-        nucleus_times[0],
-    )
-
-    ends[-1] = _lowest_intensity_time(
-        intensity,
-        nucleus_times[-1],
-        audio_duration_s,
-    )
-
-    for i in range(len(nucleus_times) - 1):
-        left_nucleus = nucleus_times[i]
-        right_nucleus = nucleus_times[i + 1]
+    for i in range(len(nucleus_times) + 1):
+        if i == 0:
+            left_nucleus = 0.0
+            right_nucleus = nucleus_times[0]
+        elif i == len(nucleus_times):
+            left_nucleus = nucleus_times[-1]
+            right_nucleus = audio_duration_s
+        else:
+            left_nucleus = nucleus_times[i - 1]
+            right_nucleus = nucleus_times[i]
 
         pause = _find_pause_between(
             intensity,
@@ -340,20 +335,30 @@ def estimate_syllable_intervals(
         if pause is not None:
             pause_start, pause_end = pause
 
-            ends[i] = pause_start
-            starts[i + 1] = pause_end
+            if i == 0:
+                starts[0] = pause_end
+            elif i == len(nucleus_times):
+                ends[-1] = pause_start
+            else:
+                ends[i - 1] = pause_start
+                starts[i] = pause_end
 
         else:
-            # Normal case:
-            # adjacent syllables share the intensity valley.
             boundary = _lowest_intensity_time(
                 intensity,
                 left_nucleus,
                 right_nucleus,
             )
 
-            ends[i] = boundary
-            starts[i + 1] = boundary
+            if i == 0:
+                starts[0] = boundary
+            elif i == len(nucleus_times):
+                ends[-1] = boundary
+            else:
+                # Normal case:
+                # adjacent syllables share the intensity valley.
+                ends[i - 1] = boundary
+                starts[i] = boundary
 
     return [
         (
