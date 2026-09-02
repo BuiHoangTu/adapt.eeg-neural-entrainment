@@ -28,6 +28,8 @@ class Syllable:
     nucleus: float = field(init=False)
     end: float
 
+    _audio: AudioSegment = field(repr=False)
+
     pitch_hz: float
     intensity_db: float
 
@@ -91,7 +93,7 @@ StressEvidence: TypeAlias = tuple[float, float, float]
 
 def load_audio(
     audio_input: str | Path | AudioSegment,
-) -> tuple[parselmouth.Sound, np.ndarray, int]:
+) -> tuple[parselmouth.Sound, AudioSegment, np.ndarray, int]:
     """
     Load audio, convert to mono, and return:
         Praat Sound,
@@ -116,7 +118,7 @@ def load_audio(
 
     sound = parselmouth.Sound(samples, sampling_frequency=sample_rate)
 
-    return sound, samples, sample_rate
+    return sound, audio, samples, sample_rate
 
 
 def get_intensity_contour(
@@ -407,6 +409,7 @@ def _measure_rms_db(
 
 def measure_syllables(
     intervals: list[SyllableInterval],
+    audio: AudioSegment,
     samples: np.ndarray,
     sample_rate: int,
     f0: Contour,
@@ -435,6 +438,7 @@ def measure_syllables(
                 start=start,
                 _nucleus=nucleus,
                 end=end,
+                _audio=audio[round(start * 1000) : round(end * 1000)],  # type: ignore  # only return generator if slicing has step
                 pitch_hz=pitch,
                 intensity_db=intensity,
             )
@@ -735,7 +739,7 @@ def detect_stressed_syllables(
     Only syllables classified as stressed are returned.
     """
 
-    sound, samples, sample_rate = load_audio(audio_input)
+    sound, audio, samples, sample_rate = load_audio(audio_input)
 
     intensity = get_intensity_contour(
         sound,
@@ -777,6 +781,7 @@ def detect_stressed_syllables(
 
     syllables = measure_syllables(
         intervals,
+        audio,
         samples,
         sample_rate,
         f0,
