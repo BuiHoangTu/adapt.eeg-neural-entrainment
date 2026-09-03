@@ -30,19 +30,27 @@ def _audio_to_data_url(audio):
     return f"data:{mime_type};base64,{encoded}"
 
 
+icr_uid = 0
+
+
 def waveform_render(
     audio,
     timestamps,
     window_seconds=20,
     height=160,
+    uid=None,
 ):
     """
     Render html of audio with markers at time stamps. Use for long audio.
-    
+
     Parameters
     ----------
     audio:
         pydub.AudioSegment or path to file
+    timestamps: where to put the markers
+    uid: None for increment from 1, set this for stable output. 
+    It is needed as multiple recall of the function will overide the old displayer 
+    instead of generating new ones
 
     timestamps:
         [1.2, 3.4, 8.1]
@@ -79,7 +87,10 @@ def waveform_render(
 
     markers_json = json.dumps(markers)
 
-    uid = "random_uid"
+    if uid is None:
+        global icr_uid
+        icr_uid += 1
+        uid = icr_uid
 
     waveform_id = f"waveform_{uid}"
     button_id = f"button_{uid}"
