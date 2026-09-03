@@ -62,9 +62,9 @@ class AnalysisParams:
     # Pitch/intensity co-occurrence
     pitch_percentile: float = 90.0
 
-    # Local area used when measuring prominence against neighboring regions
-    prominence_buffer_s: float = 0.05
-    prominence_context_s: float = 0.10
+    # Neighboring-region baseline for pitch/intensity prominence
+    prominence_neighbor_half_window_s: float = 0.05
+    prominence_min_nucleus_distance_s: float = 0.04
 
     # Paper does not provide numerical prominence thresholds.
     # 0 means: any elevation above neighboring regions is accepted.
@@ -454,15 +454,15 @@ def measure_syllables(
 
 def _neighbor_values(
     contour: Contour,
-    nucleus_time: float,
-    prominence_buffer_s: float,
-    prominence_context_s: float,
+    syllable: Syllable,
+    neighbor_half_window_s: float,
+    min_nucleus_distance_s: float,
 ) -> np.ndarray:
-    distance = np.abs(contour.times - nucleus_time)
+    around_start = np.abs(contour.times - syllable.start) <= neighbor_half_window_s
+    around_end = np.abs(contour.times - syllable.end) <= neighbor_half_window_s
+    far_from_nucleus = np.abs(contour.times - syllable.nucleus) >= min_nucleus_distance_s
 
-    mask = (distance >= prominence_buffer_s) & (
-        distance <= prominence_buffer_s + prominence_context_s
-    )
+    mask = (around_start | around_end) & far_from_nucleus
 
     values = contour.values[mask]
 
@@ -472,15 +472,15 @@ def _neighbor_values(
 def _measure_intensity_prominence(
     syllable: Syllable,
     intensity: Contour,
-    prominence_buffer_s: float,
-    prominence_context_s: float,
+    neighbor_half_window_s: float,
+    min_nucleus_distance_s: float,
     silence_threshold_db: float,
 ) -> float:
     neighbor_values = _neighbor_values(
         intensity,
-        syllable.nucleus,
-        prominence_buffer_s,
-        prominence_context_s,
+        syllable,
+        neighbor_half_window_s,
+        min_nucleus_distance_s,
     )
 
     if len(neighbor_values) == 0:
@@ -492,34 +492,24 @@ def _measure_intensity_prominence(
 def _measure_pitch_prominence(
     syllable: Syllable,
     f0: Contour,
-    prominence_buffer_s: float,
-    prominence_context_s: float,
-    pitch_percentile: float,
+    neighbor_half_window_s: float,
+    min_nucleus_distance_s: float,
     pitch_floor_hz: float,
 ) -> float:
-    nucleus_values = _neighbor_values(
-        f0,
-        syllable.nucleus,
-        0,  # area next to the nucleus
-        prominence_buffer_s,  # size of buffer
-    )
-
-    if len(nucleus_values) == 0:
+    if not np.isfinite(syllable.pitch_hz):
         return np.nan
-
-    nucleus_pitch_hz = np.percentile(nucleus_values, pitch_percentile)
 
     neighbor_values = _neighbor_values(
         f0,
-        syllable.nucleus,
-        prominence_buffer_s,
-        prominence_context_s,
+        syllable,
+        neighbor_half_window_s,
+        min_nucleus_distance_s,
     )
 
     if len(neighbor_values) == 0:
-        return float(nucleus_pitch_hz - pitch_floor_hz)
+        return float(syllable.pitch_hz - pitch_floor_hz)
 
-    return float(nucleus_pitch_hz - np.nanmedian(neighbor_values))
+    return float(syllable.pitch_hz - np.nanmedian(neighbor_values))
 
 
 def _measure_duration_prominences(
@@ -562,9 +552,8 @@ def calculate_stress_evidence(
     syllables: list[Syllable],
     f0: Contour,
     intensity: Contour,
-    prominence_buffer_s: float,
-    prominence_context_s: float,
-    pitch_percentile: float,
+    prominence_neighbor_half_window_s: float,
+    prominence_min_nucleus_distance_s: float,
     duration_neighbor_radius: int,
     pitch_floor_hz: float,
     silence_threshold_db: float,
@@ -579,16 +568,15 @@ def calculate_stress_evidence(
             _measure_pitch_prominence(
                 syllable,
                 f0,
-                prominence_buffer_s,
-                prominence_context_s,
-                pitch_percentile,
+                prominence_neighbor_half_window_s,
+                prominence_min_nucleus_distance_s,
                 pitch_floor_hz,
             ),
             _measure_intensity_prominence(
                 syllable,
                 intensity,
-                prominence_buffer_s,
-                prominence_context_s,
+                prominence_neighbor_half_window_s,
+                prominence_min_nucleus_distance_s,
                 silence_threshold_db,
             ),
             float(duration_prominence),
@@ -797,9 +785,8 @@ def detect_stressed_syllables(
         syllables,
         f0,
         intensity,
-        params.prominence_buffer_s,
-        params.prominence_context_s,
-        params.pitch_percentile,
+        params.prominence_neighbor_half_window_s,
+        params.prominence_min_nucleus_distance_s,
         params.duration_neighbor_radius,
         params.pitch_floor_hz,
         silence_threshold_db,
