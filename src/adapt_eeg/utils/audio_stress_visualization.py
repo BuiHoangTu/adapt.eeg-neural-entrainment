@@ -3,6 +3,7 @@ import io
 import json
 import mimetypes
 from pathlib import Path
+from uuid import uuid4
 
 from pydub import AudioSegment
 
@@ -30,7 +31,6 @@ def _audio_to_data_url(audio):
     return f"data:{mime_type};base64,{encoded}"
 
 
-icr_uid = 0
 
 
 def waveform_render(
@@ -48,7 +48,7 @@ def waveform_render(
     audio:
         pydub.AudioSegment or path to file
     timestamps: where to put the markers
-    uid: None for increment from 1, set this for stable output. 
+    uid: None for random, set this for fixed output html. 
     It is needed as multiple recall of the function will overide the old displayer 
     instead of generating new ones
 
@@ -88,9 +88,7 @@ def waveform_render(
     markers_json = json.dumps(markers)
 
     if uid is None:
-        global icr_uid
-        icr_uid += 1
-        uid = icr_uid
+        uid = uuid4().hex
 
     waveform_id = f"waveform_{uid}"
     button_id = f"button_{uid}"
