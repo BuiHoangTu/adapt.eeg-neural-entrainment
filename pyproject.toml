@@ -16,6 +16,7 @@ dependencies = [
     "XlsxWriter",
     "praat-parselmouth",
     "pydub",
+    "praatio"
 ]
 
 [tool.setuptools.packages.find]
