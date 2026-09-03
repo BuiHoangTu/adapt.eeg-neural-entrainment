@@ -20,7 +20,7 @@ DEFAULT_PARAMS = SyllableIdentifyParams()
 
 
 
-def load_audio(
+def _load_audio(
     audio_input: str | Path | AudioSegment,
 ) -> tuple[parselmouth.Sound, AudioSegment, np.ndarray, int]:
     """
@@ -386,7 +386,7 @@ def syllablize_audio(
     audio_input: str | Path | AudioSegment,
     params: SyllableIdentifyParams = DEFAULT_PARAMS,
 ) -> SyllablizedAudio:
-    sound, audio, samples, sample_rate = load_audio(audio_input)
+    sound, audio, samples, sample_rate = _load_audio(audio_input)
 
     intensity = get_intensity_contour(
         sound,
