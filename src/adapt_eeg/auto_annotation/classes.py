@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import TypeAlias
 
 import numpy as np
@@ -52,6 +52,23 @@ class Syllable:
     def __post_init__(self):
         object.__setattr__(self, "nucleus", self._nucleus.time)
         object.__setattr__(self, "duration_s", self.end - self.start)
+
+@dataclass(frozen=True)
+class TranscriptedSyllable(Syllable):
+    transcription: str
+
+    @classmethod
+    def from_syllable(
+        cls,
+        syllable: Syllable,
+        transcription: str,
+    ) -> "TranscriptedSyllable":
+        values = {f.name: getattr(syllable, f.name) for f in fields(Syllable) if f.init}
+
+        return cls(
+            **values,
+            transcription=transcription,
+        )
 
 
 @dataclass(frozen=True)
