@@ -1,0 +1,100 @@
+from dataclasses import dataclass, field
+from typing import TypeAlias
+
+import numpy as np
+import parselmouth
+from pydub import AudioSegment
+
+
+@dataclass(frozen=True)
+class StressIdentifyParams:
+    # pitch range
+    pitch_range_hz: tuple[float, float] = (75, 500)
+
+    # Neighboring-region baseline for pitch/intensity prominence
+    prominence_neighbor_half_window_s: float = 0.05
+    prominence_min_nucleus_distance_s: float = 0.04
+
+    # Paper does not provide numerical prominence thresholds.
+    # 0 means: any elevation above neighboring regions is accepted.
+    min_pitch_prominence_hz: float = 0.0
+    min_intensity_prominence_db: float = 0.0
+
+    # Duration prominence compares against nearby syllables.
+    duration_neighbor_radius: int = 3
+
+    # Stress score aggregation
+    stress_weights: tuple[float, float, float] = (0.333, 0.333, 0.333)
+    stress_score_threshold: float = 0.0
+
+
+@dataclass(frozen=True)
+class Nucleus:
+    time: float
+    intensity_db: float
+    prominence_db: float
+
+
+@dataclass(frozen=True)
+class Syllable:
+    start: float
+    _nucleus: Nucleus = field(repr=False)
+    nucleus: float = field(init=False)
+    end: float
+
+    _audio: AudioSegment = field(repr=False)
+
+    pitch_hz: float
+    intensity_db: float
+
+    duration_s: float = field(init=False)
+
+    def __post_init__(self):
+        object.__setattr__(self, "nucleus", self._nucleus.time)
+        object.__setattr__(self, "duration_s", self.end - self.start)
+
+
+@dataclass(frozen=True)
+class SyllableIdentifyParams:
+    # Intensity / nucleus detection
+    intensity_floor_hz: float = 50.0
+    silence_threshold_relative_db: float = -25.0
+    min_nucleus_prominence_db: float = 2.0
+
+    # Pitch
+    pitch_range_hz: tuple[float, float] = (75.0, 500.0)
+    pitch_time_step_s: float = 0.01
+
+    # Voicing
+    voicing_half_window_s: float = 0.04
+    min_voiced_fraction: float = 0.50
+
+    # Pause handling
+    min_pause_duration_s: float = 0.3
+
+    # Pitch/intensity co-occurrence
+    pitch_percentile: float = 90.0
+
+
+@dataclass(frozen=True)
+class Contour:
+    times: np.ndarray
+    values: np.ndarray
+
+
+@dataclass(frozen=True)
+class SyllablizedAudio:
+    sound: parselmouth.Sound
+    audio: AudioSegment
+    samples: np.ndarray
+    sample_rate: int
+    intensity: Contour
+    f0: Contour
+    silence_threshold_db: float
+    syllables: list[Syllable]
+
+
+SyllableInterval: TypeAlias = tuple[float, Nucleus, float]
+"""Tuple of (start_time, nucleus, end_time)"""
+StressEvidence: TypeAlias = tuple[float, float, float]
+"""Tuple of (pitch_prominence_hz, intensity_prominence_db, duration_prominence_s)"""

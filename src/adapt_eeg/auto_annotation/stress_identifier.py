@@ -1,42 +1,14 @@
-from dataclasses import dataclass
-from typing import TypeAlias
-
 import numpy as np
 
-from adapt_eeg.utils.syllable_identifier import (
+from adapt_eeg.auto_annotation.classes import (
     Contour,
+    StressEvidence,
+    StressIdentifyParams,
     Syllable,
     SyllablizedAudio,
 )
 
-
-@dataclass(frozen=True)
-class StressIdentifyParams:
-    # pitch range
-    pitch_range_hz: tuple[float, float] = (75, 500)
-
-    # Neighboring-region baseline for pitch/intensity prominence
-    prominence_neighbor_half_window_s: float = 0.05
-    prominence_min_nucleus_distance_s: float = 0.04
-
-    # Paper does not provide numerical prominence thresholds.
-    # 0 means: any elevation above neighboring regions is accepted.
-    min_pitch_prominence_hz: float = 0.0
-    min_intensity_prominence_db: float = 0.0
-
-    # Duration prominence compares against nearby syllables.
-    duration_neighbor_radius: int = 3
-
-    # Stress score aggregation
-    stress_weights: tuple[float, float, float] = (0.333, 0.333, 0.333)
-    stress_score_threshold: float = 0.0
-
-
 DEFAULT_PARAMS = StressIdentifyParams()
-
-
-StressEvidence: TypeAlias = tuple[float, float, float]
-"""Tuple of (pitch_prominence_hz, intensity_prominence_db, duration_prominence_s)"""
 
 
 def _neighbor_values(
@@ -47,7 +19,9 @@ def _neighbor_values(
 ) -> np.ndarray:
     around_start = np.abs(contour.times - syllable.start) <= neighbor_half_window_s
     around_end = np.abs(contour.times - syllable.end) <= neighbor_half_window_s
-    far_from_nucleus = np.abs(contour.times - syllable.nucleus) >= min_nucleus_distance_s
+    far_from_nucleus = (
+        np.abs(contour.times - syllable.nucleus) >= min_nucleus_distance_s
+    )
 
     mask = (around_start | around_end) & far_from_nucleus
 
