@@ -48,8 +48,7 @@ class AnalysisParams:
     min_nucleus_prominence_db: float = 2.0
 
     # Pitch
-    pitch_floor_hz: float = 75.0
-    pitch_ceiling_hz: float = 500.0
+    pitch_range_hz: tuple[float, float] = (75.0, 500.0)
     pitch_time_step_s: float = 0.01
 
     # Voicing
@@ -75,9 +74,7 @@ class AnalysisParams:
     duration_neighbor_radius: int = 3
 
     # Stress score aggregation
-    pitch_weight: float = 0.333
-    intensity_weight: float = 0.333
-    duration_weight: float = 0.333
+    stress_weights: tuple[float, float, float] = (0.333, 0.333, 0.333)
     stress_score_threshold: float = 0.0
 
 
@@ -86,7 +83,6 @@ DEFAULT_PARAMS = AnalysisParams()
 
 SyllableInterval: TypeAlias = tuple[float, Nucleus, float]
 """Tuple of (start_time, nucleus, end_time)"""
-
 StressEvidence: TypeAlias = tuple[float, float, float]
 """Tuple of (pitch_prominence_hz, intensity_prominence_db, duration_prominence_s)"""
 
@@ -141,9 +137,10 @@ def get_intensity_contour(
 def get_f0_contour(
     sound: parselmouth.Sound,
     pitch_time_step_s: float,
-    pitch_floor_hz: float,
-    pitch_ceiling_hz: float,
+    pitch_range_hz: tuple[float, float],
 ) -> Contour:
+
+    pitch_floor_hz, pitch_ceiling_hz = pitch_range_hz
 
     pitch = sound.to_pitch_ac(
         time_step=pitch_time_step_s,
@@ -641,18 +638,9 @@ def normalize_stress_evidence(
 
 
 def _normalize_weights(
-    pitch_weight: float,
-    intensity_weight: float,
-    duration_weight: float,
+    weights_raw: tuple[float, float, float],
 ) -> tuple[float, float, float]:
-    weights = np.asarray(
-        [
-            pitch_weight,
-            intensity_weight,
-            duration_weight,
-        ],
-        dtype=np.float64,
-    )
+    weights = np.asarray(weights_raw, dtype=np.float64)
 
     if np.any(weights < 0):
         raise ValueError("Stress weights cannot be negative.")
@@ -742,8 +730,7 @@ def detect_stressed_syllables(
     f0 = get_f0_contour(
         sound,
         params.pitch_time_step_s,
-        params.pitch_floor_hz,
-        params.pitch_ceiling_hz,
+        params.pitch_range_hz,
     )
 
     silence_threshold_db = get_silence_threshold_db(
@@ -788,17 +775,13 @@ def detect_stressed_syllables(
         params.prominence_neighbor_half_window_s,
         params.prominence_min_nucleus_distance_s,
         params.duration_neighbor_radius,
-        params.pitch_floor_hz,
+        params.pitch_range_hz[0],
         silence_threshold_db,
     )
 
     normalized_evidence = normalize_stress_evidence(evidence)
 
-    weights = _normalize_weights(
-        params.pitch_weight,
-        params.intensity_weight,
-        params.duration_weight,
-    )
+    weights = _normalize_weights(params.stress_weights)
 
     scores = calculate_stress_scores(
         normalized_evidence,
