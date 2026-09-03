@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, replace
 from typing import TypeAlias
 
 import numpy as np
@@ -52,6 +52,7 @@ class Syllable:
     def __post_init__(self):
         object.__setattr__(self, "nucleus", self._nucleus.time)
         object.__setattr__(self, "duration_s", self.end - self.start)
+
 
 @dataclass(frozen=True)
 class TranscriptedSyllable(Syllable):
@@ -109,6 +110,61 @@ class SyllablizedAudio:
     f0: Contour
     silence_threshold_db: float
     syllables: list[Syllable]
+
+    def __getitem__(self, key: slice) -> "SyllablizedAudio":
+        if not isinstance(key, slice):
+            raise TypeError("SyllablizedAudio indices must be slices")
+        if key.step is not None:
+            raise ValueError("SyllablizedAudio slicing does not support steps")
+
+        start_ms, end_ms, _ = key.indices(len(self.audio))
+        start_s = start_ms / 1000.0
+        end_s = end_ms / 1000.0
+
+        sample_start = round(start_s * self.sample_rate)
+        sample_end = round(end_s * self.sample_rate)
+
+        def slice_contour(contour: Contour) -> Contour:
+            mask = (contour.times >= start_s) & (contour.times <= end_s)
+            return Contour(
+                times=contour.times[mask] - start_s,
+                values=contour.values[mask],
+            )
+
+        syllables = []
+        for syllable in self.syllables:
+            if syllable.start < start_s or syllable.end > end_s:
+                continue
+
+            shifted_start = syllable.start - start_s
+            shifted_end = syllable.end - start_s
+            syllables.append(
+                replace(
+                    syllable,
+                    start=shifted_start,
+                    _nucleus=replace(
+                        syllable._nucleus,
+                        time=syllable._nucleus.time - start_s,
+                    ),
+                    end=shifted_end,
+                    _audio=syllable._audio,
+                )
+            )
+
+        return SyllablizedAudio(
+            sound=self.sound.extract_part(
+                from_time=start_s,
+                to_time=end_s,
+                preserve_times=False,
+            ),
+            audio=self.audio[start_ms:end_ms],  # type: ignore # not generator without steps
+            samples=self.samples[sample_start:sample_end],
+            sample_rate=self.sample_rate,
+            intensity=slice_contour(self.intensity),
+            f0=slice_contour(self.f0),
+            silence_threshold_db=self.silence_threshold_db,
+            syllables=syllables,
+        )
 
 
 SyllableInterval: TypeAlias = tuple[float, Nucleus, float]
