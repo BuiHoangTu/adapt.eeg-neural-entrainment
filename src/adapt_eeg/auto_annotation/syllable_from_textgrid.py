@@ -27,7 +27,9 @@ def _load_textgrid(tg):
         return textgrid.openTextgrid(tg, True)
 
 
-def _nucleus_from_interval(start, end, intensity, nucleus_candidates):
+def _nucleus_from_interval(
+    start, end, intensity, nucleus_candidates, raise_on_missing=False
+):
     candidates = [
         nucleus for nucleus in nucleus_candidates if start <= nucleus.time <= end
     ]
@@ -35,16 +37,17 @@ def _nucleus_from_interval(start, end, intensity, nucleus_candidates):
         return max(candidates, key=lambda nucleus: nucleus.intensity_db)
 
     # there are supposed syllables that the reader doesnt pronounce
-    # raise ValueError(
-    #     f"No detected nucleus candidate found in TextGrid interval {start:.3f}-{end:.3f}s"
-    # )
+    if raise_on_missing:
+        raise ValueError(
+            f"No detected nucleus candidate found in TextGrid interval {start:.3f}-{end:.3f}s"
+        )
 
     # Fallback: choose the local intensity peak inside the TextGrid interval.
     # Keep this disabled until we decide whether non-detected nuclei should be allowed.
     mask = (intensity.times >= start) & (intensity.times <= end)
     indices = np.flatnonzero(mask)
-    
-    # if none, get the middle 
+
+    # if none, get the middle
     if len(indices) == 0:
         nearest_index = int(np.argmin(np.abs(intensity.times - ((start + end) / 2.0))))
         return Nucleus(
@@ -52,10 +55,10 @@ def _nucleus_from_interval(start, end, intensity, nucleus_candidates):
             intensity_db=float(intensity.values[nearest_index]),
             prominence_db=np.nan,
         )
-    
+
     local_values = intensity.values[indices]
     finite_values = local_values[np.isfinite(local_values)]
-    
+
     if len(finite_values) == 0:
         nearest_index = indices[len(indices) // 2]
         return Nucleus(
@@ -63,12 +66,12 @@ def _nucleus_from_interval(start, end, intensity, nucleus_candidates):
             intensity_db=np.nan,
             prominence_db=np.nan,
         )
-    
-    # get the max value 
+
+    # get the max value
     peak_local_index = int(np.nanargmax(local_values))
     peak_index = indices[peak_local_index]
     peak_intensity = float(intensity.values[peak_index])
-    
+
     return Nucleus(
         time=float(intensity.times[peak_index]),
         intensity_db=peak_intensity,
@@ -115,7 +118,7 @@ def load_textgrid_syllable(
     for start, end, label in tier.entries:  # type: ignore
         if label in PAUSE_ANNO:
             continue
-        
+
         try:
             nucleus = _nucleus_from_interval(start, end, intensity, nucleus_candidates)
         except ValueError as e:
