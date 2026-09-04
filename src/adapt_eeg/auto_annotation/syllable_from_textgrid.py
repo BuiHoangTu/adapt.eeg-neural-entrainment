@@ -28,7 +28,13 @@ def _load_textgrid(tg):
 
 
 def _nucleus_from_interval(
-    start, end, intensity, nucleus_candidates, raise_on_missing=False
+    start,
+    end,
+    intensity,
+    nucleus_candidates,
+    syllable_pitch_percentile,
+    intensity_floor_hz,
+    raise_on_missing=False,
 ):
     candidates = [
         nucleus for nucleus in nucleus_candidates if start <= nucleus.time <= end
@@ -52,30 +58,32 @@ def _nucleus_from_interval(
         nearest_index = int(np.argmin(np.abs(intensity.times - ((start + end) / 2.0))))
         return Nucleus(
             time=float(intensity.times[nearest_index]),
-            intensity_db=float(intensity.values[nearest_index]),
+            intensity_db=float(intensity_floor_hz),
             prominence_db=np.nan,
         )
 
     local_values = intensity.values[indices]
-    finite_values = local_values[np.isfinite(local_values)]
+    finite_mask = np.isfinite(local_values)
+    finite_values = local_values[finite_mask]
 
     if len(finite_values) == 0:
         nearest_index = indices[len(indices) // 2]
         return Nucleus(
             time=float(intensity.times[nearest_index]),
-            intensity_db=np.nan,
+            intensity_db=float(intensity_floor_hz),
             prominence_db=np.nan,
         )
 
-    # get the max value
-    peak_local_index = int(np.nanargmax(local_values))
-    peak_index = indices[peak_local_index]
-    peak_intensity = float(intensity.values[peak_index])
+    percentile_intensity = float(np.percentile(finite_values, syllable_pitch_percentile))
+    finite_indices = indices[finite_mask]
+    nucleus_index = finite_indices[
+        int(np.argmin(np.abs(intensity.values[finite_indices] - percentile_intensity)))
+    ]
 
     return Nucleus(
-        time=float(intensity.times[peak_index]),
-        intensity_db=peak_intensity,
-        prominence_db=peak_intensity - float(np.nanmin(local_values)),
+        time=float(intensity.times[nucleus_index]),
+        intensity_db=percentile_intensity,
+        prominence_db=np.nan,
     )
 
 
@@ -120,7 +128,14 @@ def load_textgrid_syllable(
             continue
 
         try:
-            nucleus = _nucleus_from_interval(start, end, intensity, nucleus_candidates)
+            nucleus = _nucleus_from_interval(
+                start,
+                end,
+                intensity,
+                nucleus_candidates,
+                syllable_pitch_percentile,
+                intensity_floor_hz,
+            )
         except ValueError as e:
             e.add_note(f"expecting {label}")
             raise
