@@ -13,18 +13,18 @@ class StressIdentifyParams:
 
     # Neighboring-region baseline for pitch/intensity prominence
     prominence_neighbor_half_window_s: float = 0.05
-    prominence_min_nucleus_distance_s: float = 0.04
+    prominence_min_nucleus_distance_s: float = 0.05
 
     # Paper does not provide numerical prominence thresholds.
     # 0 means: any elevation above neighboring regions is accepted.
-    min_pitch_prominence_hz: float = 0.0
-    min_intensity_prominence_db: float = 0.0
+    min_pitch_prominence_hz: float = 0.52
+    min_intensity_prominence_db: float = 0.28
 
     # Duration prominence compares against nearby syllables.
     duration_neighbor_radius: int = 3
 
     # Stress score aggregation
-    stress_weights: tuple[float, float, float] = (0.333, 0.333, 0.333)
+    stress_weights: tuple[float, float, float] = (5, 3, 2)
     syllables_per_line: int = 10
     stressed_syllables_per_line: int = 5
 
