@@ -25,7 +25,8 @@ class StressIdentifyParams:
 
     # Stress score aggregation
     stress_weights: tuple[float, float, float] = (0.333, 0.333, 0.333)
-    stress_score_threshold: float = 0.0
+    syllables_per_line: int = 10
+    stressed_syllables_per_line: int = 5
 
 
 @dataclass(frozen=True)
