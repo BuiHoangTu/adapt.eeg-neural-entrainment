@@ -268,7 +268,9 @@ def classify_top_stresses_per_line(
         eligible_indices = []
         eligible_evidence = []
 
-        for line_index, (pitch_prominence, intensity_prominence, _) in enumerate(line_evidence):
+        for line_index, (pitch_prominence, intensity_prominence, _) in enumerate(
+            line_evidence
+        ):
             if (
                 np.isfinite(pitch_prominence)
                 and np.isfinite(intensity_prominence)
@@ -289,7 +291,6 @@ def classify_top_stresses_per_line(
                 syllable_offset=start,
             )
 
-
         normalized_evidence = normalize_stress_evidence(eligible_evidence)
         scores = calculate_stress_scores(normalized_evidence, weights)
 
@@ -306,10 +307,10 @@ def classify_top_stresses_per_line(
     return stressed
 
 
-def identify_stressed_syllables(
+def flag_stressed_syllables(
     syllablized_audio: SyllablizedAudio,
     params: StressIdentifyParams = DEFAULT_PARAMS,
-) -> list[Syllable]:
+) -> list[bool]:
     evidence = calculate_stress_evidence(
         syllablized_audio,
         params.prominence_neighbor_half_window_s,
@@ -330,18 +331,20 @@ def identify_stressed_syllables(
         params.stressed_syllables_per_line,
     )
 
-    return [
-        syllable
-        for syllable, stressed in zip(syllablized_audio.syllables, stress_flags)
-        if stressed
-    ]
+    return stress_flags
 
 
 def detect_stressed_syllables(
     syllablized_audio: SyllablizedAudio,
     params: StressIdentifyParams = DEFAULT_PARAMS,
 ) -> list[Syllable]:
-    return identify_stressed_syllables(
+    stress_flags = flag_stressed_syllables(
         syllablized_audio,
         params,
     )
+
+    return [
+        syllable
+        for syllable, stressed in zip(syllablized_audio.syllables, stress_flags)
+        if stressed
+    ]
