@@ -10,22 +10,13 @@ class InsufficientEligibleSyllablesError(ValueError):
         required_count: int,
         syllables: list[Syllable],
         evidence: list[StressEvidence],
-        min_pitch_prominence_hz: float,
-        min_intensity_prominence_db: float,
         syllable_offset: int = 0,
     ):
-        eligible_count = sum(
-            1
-            for pitch_prominence, intensity_prominence, _ in evidence
-            if np.isfinite(pitch_prominence)
-            and np.isfinite(intensity_prominence)
-            and pitch_prominence > min_pitch_prominence_hz
-            and intensity_prominence > min_intensity_prominence_db
-        )
+        eligible_count = sum(1 for item in evidence if np.any(np.isfinite(item)))
 
         super().__init__(
-            f"Line {line_index} has {eligible_count} syllables passing the minimum "
-            f"pitch/intensity prominence filters; need at least {required_count}."
+            f"Line {line_index} has {eligible_count} scoreable syllables; "
+            f"need at least {required_count}."
         )
         self.line_index = line_index
         self.required_count = required_count
@@ -45,14 +36,8 @@ class InsufficientEligibleSyllablesError(ValueError):
                 "pitch_prominence_hz": pitch_prominence,
                 "intensity_prominence_db": intensity_prominence,
                 "duration_prominence_s": duration_prominence,
-                "passes_pitch_filter": bool(
-                    np.isfinite(pitch_prominence)
-                    and pitch_prominence > min_pitch_prominence_hz
-                ),
-                "passes_intensity_filter": bool(
-                    np.isfinite(intensity_prominence)
-                    and intensity_prominence > min_intensity_prominence_db
-                ),
+                "has_pitch_evidence": bool(np.isfinite(pitch_prominence)),
+                "has_intensity_evidence": bool(np.isfinite(intensity_prominence)),
             }
             for line_syllable_index, (
                 syllable,

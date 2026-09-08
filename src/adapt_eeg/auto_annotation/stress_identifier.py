@@ -12,6 +12,26 @@ from adapt_eeg.auto_annotation.exceptions import InsufficientEligibleSyllablesEr
 DEFAULT_PARAMS = StressIdentifyParams()
 
 
+def _line_slices(
+    syllables: list[Syllable],
+    line_boundaries: tuple[float, ...],
+) -> list[slice]:
+    if any(
+        right <= left for left, right in zip(line_boundaries, line_boundaries[1:])
+    ):
+        raise ValueError("Line boundaries must be strictly increasing.")
+    if any(
+        right.nucleus < left.nucleus for left, right in zip(syllables, syllables[1:])
+    ):
+        raise ValueError("Syllables must be ordered by nucleus time.")
+
+    nuclei = np.asarray([syllable.nucleus for syllable in syllables])
+    indices = np.searchsorted(nuclei, line_boundaries, side="left")
+    stops = [*indices.tolist(), len(syllables)]
+    starts = [0, *indices.tolist()]
+    return [slice(start, stop) for start, stop in zip(starts, stops)]
+
+
 def _neighbor_values(
     contour: Contour,
     syllable: Syllable,
@@ -117,10 +137,15 @@ def calculate_stress_evidence(
     duration_neighbor_radius: int,
     pitch_floor_hz: float,
 ) -> list[StressEvidence]:
-    duration_prominences = _measure_duration_prominences(
+    duration_prominences = np.full(len(syllablized_audio.syllables), np.nan)
+    for line_slice in _line_slices(
         syllablized_audio.syllables,
-        duration_neighbor_radius,
-    )
+        syllablized_audio.line_boundaries,
+    ):
+        duration_prominences[line_slice] = _measure_duration_prominences(
+            syllablized_audio.syllables[line_slice],
+            duration_neighbor_radius,
+        )
 
     return [
         (
@@ -248,61 +273,46 @@ def classify_top_stresses_per_line(
     syllables: list[Syllable],
     evidence: list[StressEvidence],
     weights: tuple[float, float, float],
-    min_pitch_prominence_hz: float,
-    min_intensity_prominence_db: float,
-    syllables_per_line: int,
+    line_boundaries: tuple[float, ...],
     stressed_syllables_per_line: int,
 ) -> list[bool]:
-    if syllables_per_line <= 0:
-        raise ValueError("syllables_per_line must be greater than zero.")
-
     if stressed_syllables_per_line < 0:
         raise ValueError("stressed_syllables_per_line cannot be negative.")
+    if len(syllables) != len(evidence):
+        raise ValueError("Syllables and stress evidence must have the same length.")
 
     stressed = [False] * len(evidence)
 
-    for start in range(0, len(evidence), syllables_per_line):
-        end = min(len(evidence), start + syllables_per_line)
+    for line_index, line_slice in enumerate(_line_slices(syllables, line_boundaries)):
+        start = line_slice.start or 0
+        end = line_slice.stop or 0
         line_syllables = syllables[start:end]
         line_evidence = evidence[start:end]
-        eligible_indices = []
-        eligible_evidence = []
+        normalized_evidence = normalize_stress_evidence(line_evidence)
+        scores = calculate_stress_scores(normalized_evidence, weights)
+        scoreable_indices = [
+            index for index, score in enumerate(scores) if np.isfinite(score)
+        ]
 
-        for line_index, (pitch_prominence, intensity_prominence, _) in enumerate(
-            line_evidence
-        ):
-            if (
-                np.isfinite(pitch_prominence)
-                and np.isfinite(intensity_prominence)
-                and pitch_prominence > min_pitch_prominence_hz
-                and intensity_prominence > min_intensity_prominence_db
-            ):
-                eligible_indices.append(line_index)
-                eligible_evidence.append(line_evidence[line_index])
-
-        if len(eligible_evidence) < stressed_syllables_per_line:
+        if len(scoreable_indices) < stressed_syllables_per_line:
             raise InsufficientEligibleSyllablesError(
-                line_index=start // syllables_per_line,
+                line_index=line_index,
                 required_count=stressed_syllables_per_line,
                 syllables=line_syllables,
                 evidence=line_evidence,
-                min_pitch_prominence_hz=min_pitch_prominence_hz,
-                min_intensity_prominence_db=min_intensity_prominence_db,
                 syllable_offset=start,
             )
 
-        normalized_evidence = normalize_stress_evidence(eligible_evidence)
-        scores = calculate_stress_scores(normalized_evidence, weights)
-
+        # The fifth-highest score is the dynamic threshold. Stable index
+        # ordering breaks ties so that every line has exactly the requested
+        # number of stresses.
         selected_indices = sorted(
-            range(len(scores)),
-            key=lambda index: scores[index],
-            reverse=True,
+            scoreable_indices,
+            key=lambda index: (-scores[index], index),
         )[:stressed_syllables_per_line]
 
         for index in selected_indices:
-            if np.isfinite(scores[index]):
-                stressed[start + eligible_indices[index]] = True
+            stressed[start + index] = True
 
     return stressed
 
@@ -325,9 +335,7 @@ def flag_stressed_syllables(
         syllablized_audio.syllables,
         evidence,
         weights,
-        params.min_pitch_prominence_hz,
-        params.min_intensity_prominence_db,
-        params.syllables_per_line,
+        syllablized_audio.line_boundaries,
         params.stressed_syllables_per_line,
     )
 

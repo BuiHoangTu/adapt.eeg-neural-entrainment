@@ -15,17 +15,11 @@ class StressIdentifyParams:
     prominence_neighbor_half_window_s: float = 0.05
     prominence_min_nucleus_distance_s: float = 0.05
 
-    # Paper does not provide numerical prominence thresholds.
-    # 0 means: any elevation above neighboring regions is accepted.
-    min_pitch_prominence_hz: float = 0.52
-    min_intensity_prominence_db: float = 0.28
-
     # Duration prominence compares against nearby syllables.
     duration_neighbor_radius: int = 3
 
     # Stress score aggregation
     stress_weights: tuple[float, float, float] = (5, 3, 2)
-    syllables_per_line: int = 10
     stressed_syllables_per_line: int = 5
 
 
@@ -78,7 +72,7 @@ class SyllableIdentifyParams:
     # Intensity / nucleus detection
     intensity_floor_hz: float = 50.0
     silence_threshold_relative_db: float = -25.0
-    min_nucleus_prominence_db: float = 2.0
+    min_nucleus_prominence_db: float = 1.0
 
     # Pitch
     pitch_range_hz: tuple[float, float] = (75.0, 500.0)
@@ -111,6 +105,7 @@ class SyllablizedAudio:
     f0: Contour
     silence_threshold_db: float
     syllables: list[Syllable]
+    line_boundaries: tuple[float, ...] = ()
 
     def __getitem__(self, key: slice) -> "SyllablizedAudio":
         if not isinstance(key, slice):
@@ -165,6 +160,11 @@ class SyllablizedAudio:
             f0=slice_contour(self.f0),
             silence_threshold_db=self.silence_threshold_db,
             syllables=syllables,
+            line_boundaries=tuple(
+                boundary - start_s
+                for boundary in self.line_boundaries
+                if start_s < boundary < end_s
+            ),
         )
 
 
