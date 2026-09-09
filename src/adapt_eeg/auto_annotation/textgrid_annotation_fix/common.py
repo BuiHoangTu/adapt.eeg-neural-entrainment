@@ -1,5 +1,5 @@
-from collections.abc import Sequence
 import logging
+from collections.abc import Sequence
 
 from adapt_eeg.auto_annotation.classes import (
     Syllable,
