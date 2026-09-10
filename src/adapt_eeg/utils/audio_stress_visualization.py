@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import io
 import json
 import mimetypes
@@ -31,8 +32,6 @@ def _audio_to_data_url(audio):
     return f"data:{mime_type};base64,{encoded}"
 
 
-
-
 def waveform_render(
     audio,
     timestamps,
@@ -48,8 +47,8 @@ def waveform_render(
     audio:
         pydub.AudioSegment or path to file
     timestamps: where to put the markers
-    uid: None for random, set this for fixed output html. 
-    It is needed as multiple recall of the function will overide the old displayer 
+    uid: None for random, set this for fixed output html.
+    It is needed as multiple recall of the function will overide the old displayer
     instead of generating new ones
 
     timestamps:
@@ -331,3 +330,37 @@ def waveform_render(
     """
 
     return html
+
+
+def waveform_export(
+    audio,
+    timestamps,
+    save_file,
+    window_seconds=20,
+    height=160,
+):
+    path_bytes = str(save_file).encode("utf-8")
+    hash_bytes = hashlib.sha256(path_bytes).digest()
+    # Base64 encode and make URL-safe
+    encoded = base64.urlsafe_b64encode(hash_bytes).decode("ascii")
+    stable_id = encoded.rstrip("=")[:8]
+
+    html = waveform_render(audio, timestamps, window_seconds, height, stable_id)
+    Path(save_file).write_text(html, encoding="utf-8")
+
+
+def browser_open(save_file):
+    import webbrowser
+
+    file_uri = Path(save_file).resolve().as_uri()
+    webbrowser.open(file_uri, new=2)  # new=2 forces a new tab
+
+    redirect_html = f'<a href="{file_uri}" target="_blank">Open in browser</a>'
+    try:
+        from IPython.display import HTML, display
+
+        display(HTML(redirect_html))
+
+    except Exception:  # noqa: BLE001
+        # not in ipynb env
+        print(file_uri)
