@@ -105,7 +105,6 @@ class SyllablizedAudio:
     f0: Contour
     silence_threshold_db: float
     syllables: list[Syllable]
-    line_boundaries: tuple[float, ...] = ()
 
     def __getitem__(self, key: slice) -> "SyllablizedAudio":
         if not isinstance(key, slice):
@@ -160,7 +159,35 @@ class SyllablizedAudio:
             f0=slice_contour(self.f0),
             silence_threshold_db=self.silence_threshold_db,
             syllables=syllables,
-            line_boundaries=tuple(
+        )
+
+
+@dataclass(frozen=True)
+class LinedAudio(SyllablizedAudio):
+    line_boundaries: tuple[float, ...]
+
+    @classmethod
+    def from_syllablized_audio(
+        cls,
+        syllablized_audio: SyllablizedAudio,
+        line_boundaries: tuple[float, ...],
+    ) -> "LinedAudio":
+        values = {
+            field.name: getattr(syllablized_audio, field.name)
+            for field in fields(SyllablizedAudio)
+            if field.init
+        }
+        return cls(**values, line_boundaries=line_boundaries)
+
+    def __getitem__(self, key: slice) -> "LinedAudio":
+        sliced_audio = super().__getitem__(key)
+        start_ms, end_ms, _ = key.indices(len(self.audio))
+        start_s = start_ms / 1000.0
+        end_s = end_ms / 1000.0
+
+        return LinedAudio.from_syllablized_audio(
+            sliced_audio,
+            tuple(
                 boundary - start_s
                 for boundary in self.line_boundaries
                 if start_s < boundary < end_s

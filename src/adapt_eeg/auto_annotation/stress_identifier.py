@@ -2,10 +2,10 @@ import numpy as np
 
 from adapt_eeg.auto_annotation.classes import (
     Contour,
+    LinedAudio,
     StressEvidence,
     StressIdentifyParams,
     Syllable,
-    SyllablizedAudio,
 )
 from adapt_eeg.auto_annotation.exceptions import InsufficientEligibleSyllablesError
 
@@ -131,7 +131,7 @@ def _measure_duration_prominences(
 
 
 def calculate_stress_evidence(
-    syllablized_audio: SyllablizedAudio,
+    syllablized_audio: LinedAudio,
     prominence_neighbor_half_window_s: float,
     prominence_min_nucleus_distance_s: float,
     duration_neighbor_radius: int,
@@ -318,7 +318,7 @@ def classify_top_stresses_per_line(
 
 
 def flag_stressed_syllables(
-    syllablized_audio: SyllablizedAudio,
+    syllablized_audio: LinedAudio,
     params: StressIdentifyParams = DEFAULT_PARAMS,
 ) -> list[bool]:
     evidence = calculate_stress_evidence(
@@ -343,7 +343,7 @@ def flag_stressed_syllables(
 
 
 def detect_stressed_syllables(
-    syllablized_audio: SyllablizedAudio,
+    syllablized_audio: LinedAudio,
     params: StressIdentifyParams = DEFAULT_PARAMS,
 ) -> list[Syllable]:
     stress_flags = flag_stressed_syllables(

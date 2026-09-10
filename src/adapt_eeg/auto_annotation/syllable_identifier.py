@@ -385,8 +385,6 @@ def measure_syllables(
 def syllablize_audio(
     audio_input: str | Path | AudioSegment,
     params: SyllableIdentifyParams = DEFAULT_PARAMS,
-    *,
-    line_boundaries: tuple[float, ...] = (),
 ) -> SyllablizedAudio:
     sound, audio, samples, sample_rate = _load_audio(audio_input)
 
@@ -445,5 +443,4 @@ def syllablize_audio(
         f0=f0,
         silence_threshold_db=silence_threshold_db,
         syllables=syllables,
-        line_boundaries=line_boundaries,
     )

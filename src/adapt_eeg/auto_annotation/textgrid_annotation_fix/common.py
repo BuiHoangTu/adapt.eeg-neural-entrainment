@@ -2,6 +2,7 @@ import logging
 from collections.abc import Sequence
 
 from adapt_eeg.auto_annotation.classes import (
+    LinedAudio,
     Syllable,
     SyllableIdentifyParams,
     SyllablizedAudio,
@@ -135,8 +136,9 @@ def derive_eol_times_from_audio(
 def with_line_boundaries(
     syllablized_audio: SyllablizedAudio,
     eol_times: Sequence[float],
-) -> SyllablizedAudio:
+) -> LinedAudio:
     """Return an existing automatic alignment carrying the derived boundaries."""
-    from dataclasses import replace
-
-    return replace(syllablized_audio, line_boundaries=tuple(eol_times))
+    return LinedAudio.from_syllablized_audio(
+        syllablized_audio,
+        tuple(eol_times),
+    )
