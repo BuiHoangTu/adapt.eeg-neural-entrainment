@@ -89,7 +89,7 @@ POEMS_CONFIG = [
     {
         "audio_url": DATA_ROOT / "raw-audio/13. Among School Children.wav",
         "textgrid_url": DATA_ROOT / "text-grid/13. among school childrenFinaltextgrid",
-        "intro_end": 0,
+        "intro_end": 1800,
         "iambic_pentameter": True,
     },
     {
