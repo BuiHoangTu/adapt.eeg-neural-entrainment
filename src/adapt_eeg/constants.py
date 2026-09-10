@@ -53,7 +53,7 @@ POEMS_CONFIG = [
     {
         "audio_url": DATA_ROOT / "raw-audio/7. The new faces.wav",
         "textgrid_url": DATA_ROOT / "text-grid/07_The_new_faces-Textgrid Final",
-        "intro_end": 0,
+        "intro_end": 3700,
         "iambic_pentameter": True,
     },
     {
