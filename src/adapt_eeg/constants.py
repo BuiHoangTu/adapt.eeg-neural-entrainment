@@ -21,7 +21,7 @@ POEMS_CONFIG = [
     {
         "audio_url": DATA_ROOT / "raw-audio/2. The_tower_final.wav",
         "textgrid_url": DATA_ROOT / "text-grid/02.The Tower_FinalThetowerfinal-",
-        "intro_end": 0,
+        "intro_end": 1700,
     },
     {
         "audio_url": DATA_ROOT / "raw-audio/3. Meditation I_VII.wav",
