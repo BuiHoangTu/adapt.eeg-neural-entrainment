@@ -356,3 +356,33 @@ def detect_stressed_syllables(
         for syllable, stressed in zip(syllablized_audio.syllables, stress_flags)
         if stressed
     ]
+
+
+def calculate_inter_stress_distances(
+    lined_audio: LinedAudio,
+    params: StressIdentifyParams = DEFAULT_PARAMS,
+) -> list[list[float]]:
+    """Return consecutive stressed-nucleus distances in seconds for each line."""
+    stress_flags = flag_stressed_syllables(lined_audio, params)
+
+    distances_per_line = []
+    for line_slice in _line_slices(
+        lined_audio.syllables,
+        lined_audio.line_boundaries,
+    ):
+        stress_times = [
+            syllable.nucleus
+            for syllable, stressed in zip(
+                lined_audio.syllables[line_slice],
+                stress_flags[line_slice],
+            )
+            if stressed
+        ]
+        distances_per_line.append(
+            [
+                float(right - left)
+                for left, right in zip(stress_times, stress_times[1:])
+            ]
+        )
+
+    return distances_per_line
