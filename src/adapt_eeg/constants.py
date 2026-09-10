@@ -77,7 +77,7 @@ POEMS_CONFIG = [
     {
         "audio_url": DATA_ROOT / "raw-audio/11. Leda and the swan.wav",
         "textgrid_url": DATA_ROOT / "text-grid/11.Leda and the swanFinal_textgrid",
-        "intro_end": 0,
+        "intro_end": 3200,
         "iambic_pentameter": True,
     },
     {
