@@ -14,7 +14,7 @@ DEFAULT_PARAMS = StressIdentifyParams()
 
 def _line_slices(
     syllables: list[Syllable],
-    line_boundaries: tuple[float, ...],
+    line_boundaries: list[float],
 ) -> list[slice]:
     if any(
         right <= left for left, right in zip(line_boundaries, line_boundaries[1:])
@@ -273,7 +273,7 @@ def classify_top_stresses_per_line(
     syllables: list[Syllable],
     evidence: list[StressEvidence],
     weights: tuple[float, float, float],
-    line_boundaries: tuple[float, ...],
+    line_boundaries: list[float],
     stressed_syllables_per_line: int,
 ) -> list[bool]:
     if stressed_syllables_per_line < 0:

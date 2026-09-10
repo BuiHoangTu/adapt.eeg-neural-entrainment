@@ -115,6 +115,24 @@ def derive_eol_times_from_audio(
     params: SyllableIdentifyParams = SyllableIdentifyParams(),
 ) -> list[float]:
     """Load both alignments, remove the intro, and derive automatic EOL times."""
+    return derive_lined_audio(
+        audio_input,
+        textgrid_input,
+        textgrid_eol_indices,
+        intro_end_ms=intro_end_ms,
+        params=params,
+    ).line_boundaries
+
+
+def derive_lined_audio(
+    audio_input,
+    textgrid_input,
+    textgrid_eol_indices: Sequence[int],
+    *,
+    intro_end_ms: int,
+    params: SyllableIdentifyParams = SyllableIdentifyParams(),
+) -> LinedAudio:
+    """Load both alignments and return automatic audio with derived line boundaries."""
     manual = load_textgrid_syllable(
         audio_input,
         textgrid_input,
@@ -126,10 +144,13 @@ def derive_eol_times_from_audio(
         min_nucleus_prominence_db=params.min_nucleus_prominence_db,
     )[intro_end_ms:]
     automatic = syllablize_audio(audio_input, params)[intro_end_ms:]
-    return derive_eol_times(
-        manual.syllables,  # type: ignore[arg-type]
-        automatic.syllables,
-        textgrid_eol_indices,
+    return with_line_boundaries(
+        automatic,
+        derive_eol_times(
+            manual.syllables,  # type: ignore[arg-type]
+            automatic.syllables,
+            textgrid_eol_indices,
+        ),
     )
 
 
@@ -140,5 +161,5 @@ def with_line_boundaries(
     """Return an existing automatic alignment carrying the derived boundaries."""
     return LinedAudio.from_syllablized_audio(
         syllablized_audio,
-        tuple(eol_times),
+        list(eol_times),
     )

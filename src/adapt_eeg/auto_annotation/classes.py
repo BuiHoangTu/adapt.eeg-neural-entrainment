@@ -164,13 +164,13 @@ class SyllablizedAudio:
 
 @dataclass(frozen=True)
 class LinedAudio(SyllablizedAudio):
-    line_boundaries: tuple[float, ...]
+    line_boundaries: list[float]
 
     @classmethod
     def from_syllablized_audio(
         cls,
         syllablized_audio: SyllablizedAudio,
-        line_boundaries: tuple[float, ...],
+        line_boundaries: list[float],
     ) -> "LinedAudio":
         values = {
             field.name: getattr(syllablized_audio, field.name)
@@ -187,11 +187,11 @@ class LinedAudio(SyllablizedAudio):
 
         return LinedAudio.from_syllablized_audio(
             sliced_audio,
-            tuple(
+            [
                 boundary - start_s
                 for boundary in self.line_boundaries
                 if start_s < boundary < end_s
-            ),
+            ],
         )
 
 
