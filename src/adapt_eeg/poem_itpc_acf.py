@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from adapt_eeg.exploration.stress_rhythm_evidence import analyze_poem, summarize_by_poem
+from adapt_eeg.exploration.stress_rhythm_evidence import EEG_POEM_IDS
 from adapt_eeg.poem_eeg import (
     InvalidPoemRecordingError,
     PoemRecording,
@@ -37,35 +37,63 @@ from adapt_eeg.poem_rhythm import PoemLineTiming, derive_poem_line_timings, poem
 
 N_LINE_INTERVALS = 30
 PRE_ANCHOR_FRACTION = 1.0 / 3.0
+DEFAULT_RHYTHM_CSV = Path("results/poem_itpc/poem_line_rhythm.csv")
+PAPER_WINDOW_S = 0.3
 
 
-def poem_acf_configuration(poems: list[int]) -> pd.DataFrame:
-    """Use the median line-level intensity ACF peak as each poem's ACF estimate."""
-    lines = pd.concat([analyze_poem(poem) for poem in poems], ignore_index=True)
-    summary = summarize_by_poem(lines)
-    summary = summary[["poem", "median_intensity_autocorrelation_peak_hz"]].copy()
-    summary = summary.rename(
-        columns={"median_intensity_autocorrelation_peak_hz": "acf_frequency_hz"}
+def paper_window_configuration(poems: list[int]) -> pd.DataFrame:
+    """Use the paper's EEG-ACF-motivated fixed 0.3-second window."""
+    return pd.DataFrame(
+        {
+            "poem": poems,
+            "window_duration_s": PAPER_WINDOW_S,
+            "itpc_frequency_source": "poem_mean_stress_interval",
+            "window_source": "paper_eeg_acf_fixed_0.3s",
+            "line_anchor_count": N_LINE_INTERVALS + 1,
+        }
     )
-    summary["acf_window_duration_s"] = 1.0 / summary["acf_frequency_hz"]
-    summary["itpc_frequency_source"] = "poem_mean_stress_interval"
-    summary["window_source"] = "median_line_intensity_acf_peak_lag"
-    summary["line_anchor_count"] = N_LINE_INTERVALS + 1
-    return summary
 
 
-def acf_condition_stats_by_poem(full: pd.DataFrame) -> pd.DataFrame:
-    """Add the ACF-derived configuration to the poem-level statistics table."""
+def load_or_derive_timings(
+    poems: list[int],
+    rhythm_csv: Path,
+) -> dict[int, list[PoemLineTiming]]:
+    """Reuse the cycle-aligned line classification so both analyses match."""
+    if rhythm_csv.exists():
+        frame = pd.read_csv(rhythm_csv)
+        available = set(frame["poem"].astype(int))
+        missing = set(poems) - available
+        if missing:
+            raise ValueError(f"{rhythm_csv} is missing poems {sorted(missing)}")
+        timings = {}
+        for poem in poems:
+            rows = frame.loc[frame["poem"] == poem].sort_values("line_index")
+            timings[poem] = [
+                PoemLineTiming(
+                    poem=int(row.poem),
+                    line_index=int(row.line_index),
+                    line_number=int(row.line_number),
+                    start_s=float(row.start_s),
+                    end_s=float(row.end_s),
+                    mean_interval_s=float(row.mean_interval_s),
+                    median_interval_s=float(row.median_interval_s),
+                    std_interval_s=float(row.std_interval_s),
+                    stress_frequency_hz=float(row.stress_frequency_hz),
+                    rhythm_condition=str(row.rhythm_condition),
+                )
+                for row in rows.itertuples(index=False)
+            ]
+        return timings
+    return {poem: derive_poem_line_timings(poem) for poem in poems}
+
+
+def paper_condition_stats_by_poem(full: pd.DataFrame) -> pd.DataFrame:
+    """Add the fixed paper-window configuration to poem-level statistics."""
     table = condition_stats_by_poem(full).drop(columns="frequency_hz")
-    windows = full.groupby("poem")["acf_window_duration_s"].first()
+    windows = full.groupby("poem")["window_duration_s"].first()
     table.insert(
         1,
-        "acf_frequency_hz",
-        table["poem"].map(1.0 / windows),
-    )
-    table.insert(
-        2,
-        "acf_window_duration_s",
+        "window_duration_s",
         table["poem"].map(windows),
     )
 
@@ -96,8 +124,7 @@ def acf_condition_stats_by_poem(full: pd.DataFrame) -> pd.DataFrame:
         [
             {
                 "poem": "Total",
-                "acf_frequency_hz": np.nan,
-                "acf_window_duration_s": np.nan,
+                "window_duration_s": PAPER_WINDOW_S,
                 "n_paired": len(paired),
                 "regular_mean": paired["regular"].mean(),
                 "irregular_mean": paired["irregular"].mean(),
@@ -170,6 +197,7 @@ def analyze_recording(
     lines: list[PoemLineTiming],
     frequency_hz: float,
     window_s: float,
+    window_source: str,
 ) -> tuple[list[dict], list[dict]]:
     rows, errors = [], []
     channel_names = usable_eeg_channels(recording.raw)
@@ -198,8 +226,8 @@ def analyze_recording(
                             "stress_frequency_hz": line.stress_frequency_hz,
                             "frequency_source": "poem_mean_stress_interval",
                             "frequency_hz": frequency_hz,
-                            "window_source": "poem_intensity_acf_peak_lag",
-                            "acf_window_duration_s": window_s,
+                            "window_source": window_source,
+                            "window_duration_s": window_s,
                             "line_anchor_count": N_LINE_INTERVALS + 1,
                             "window_shift_s": shift_s,
                             "n_windows": len(epochs),
@@ -222,17 +250,27 @@ def analyze_recording(
     return rows, errors
 
 
-def run(data_root: Path, output_dir: Path, *, fail_on_errors: bool = True) -> None:
+def run(
+    data_root: Path,
+    output_dir: Path,
+    *,
+    rhythm_csv: Path = DEFAULT_RHYTHM_CSV,
+    fail_on_errors: bool = True,
+) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    discovered = discover_ica_cleaned_files(data_root)
+    discovered = [
+        path
+        for path in discover_ica_cleaned_files(data_root)
+        if ids_from_path(path)[0] in EEG_POEM_IDS
+    ]
     paths, duplicates = unique_recording_paths(discovered)
     poems = sorted({ids_from_path(path)[0] for path in discovered})
-    timings = {poem: derive_poem_line_timings(poem) for poem in poems}
+    timings = load_or_derive_timings(poems, rhythm_csv)
     frequencies = {poem: poem_stress_frequency(lines) for poem, lines in timings.items()}
-    config = poem_acf_configuration(poems)
+    config = paper_window_configuration(poems)
     config["itpc_frequency_hz"] = config["poem"].map(frequencies)
     config.to_csv(output_dir / "acf_itpc_configuration.csv", index=False, float_format=CSV_FLOAT_FORMAT)
-    windows = config.set_index("poem")["acf_window_duration_s"].to_dict()
+    configurations = config.set_index("poem").to_dict(orient="index")
     pd.DataFrame([asdict(line) for lines in timings.values() for line in lines]).to_csv(
         output_dir / "poem_line_rhythm.csv", index=False, float_format=CSV_FLOAT_FORMAT
     )
@@ -249,8 +287,13 @@ def run(data_root: Path, output_dir: Path, *, fail_on_errors: bool = True) -> No
         print(f"[{index}/{len(paths)}] {path}")
         try:
             recording = load_poem_recording(path, preload=True)
+            poem_config = configurations[recording.poem]
             found, failures = analyze_recording(
-                recording, timings[recording.poem], frequencies[recording.poem], windows[recording.poem]
+                recording,
+                timings[recording.poem],
+                frequencies[recording.poem],
+                float(poem_config["window_duration_s"]),
+                str(poem_config["window_source"]),
             )
             rows.extend(found)
             errors.extend(failures)
@@ -276,7 +319,7 @@ def run(data_root: Path, output_dir: Path, *, fail_on_errors: bool = True) -> No
     language_group_stats_table(participant).to_csv(
         output_dir / "language_group_stats_by_channel.csv", index=False, float_format=CSV_FLOAT_FORMAT
     )
-    acf_condition_stats_by_poem(full).to_csv(
+    paper_condition_stats_by_poem(full).to_csv(
         output_dir / "condition_stats_by_poem.csv", index=False, float_format=CSV_FLOAT_FORMAT
     )
     export_xlsx(full, output_dir / "poem_itpc_by_channel.xlsx")
@@ -291,9 +334,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", type=Path, default=Path("data/raw-eeg"))
     parser.add_argument("--output-dir", type=Path, default=Path("results/poem_itpc_acf"))
+    parser.add_argument("--rhythm-csv", type=Path, default=DEFAULT_RHYTHM_CSV)
     parser.add_argument("--allow-errors", action="store_true")
     args = parser.parse_args()
-    run(args.data_root, args.output_dir, fail_on_errors=not args.allow_errors)
+    run(
+        args.data_root,
+        args.output_dir,
+        rhythm_csv=args.rhythm_csv,
+        fail_on_errors=not args.allow_errors,
+    )
 
 
 if __name__ == "__main__":

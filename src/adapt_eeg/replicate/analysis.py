@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from adapt_eeg.constants import IRREGULAR_LINES, REGULAR_LINES
+from adapt_eeg.baseline import IRREGULAR_LINES, REGULAR_LINES
 from adapt_eeg.replicate.stats import reject_studentized_residuals
 from adapt_eeg.utils.visualization import write_itpc_visualizations
 

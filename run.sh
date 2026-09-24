@@ -16,21 +16,27 @@ export PYTHONPATH="$project_root/src"
 
 python_command=(conda run --no-capture-output -n nbm python)
 
-echo "[1/4] Deriving poem rhythm classifications and frequency evidence"
+echo "[1/5] Deriving poem rhythm classifications and frequency evidence"
 "${python_command[@]}" -m adapt_eeg.exploration.stress_rhythm_evidence
 
-echo "[2/4] Auditing ICA-cleaned EEG annotations"
+echo "[2/5] Auditing ICA-cleaned EEG annotations"
 "${python_command[@]}" \
     -m adapt_eeg.exploration.inspect_ica_final_annotations \
     --allow-errors
 
-echo "[3/4] Computing trigger-aligned four-poem cycle-aligned ITPC"
+echo "[3/5] Computing trigger-aligned four-poem cycle-aligned ITPC"
 "${python_command[@]}" -m adapt_eeg.poem_itpc --allow-errors
 
-echo "[4/4] Computing poem-specific ACF-windowed ITPC"
-"${python_command[@]}" -m adapt_eeg.poem_itpc_acf --allow-errors
+echo "[4/5] Computing fixed-0.3s paper-window ITPC"
+"${python_command[@]}" \
+    -m adapt_eeg.poem_itpc_acf \
+    --allow-errors
+
+echo "[5/5] Building four-method comparison tables"
+"${python_command[@]}" -m adapt_eeg.method_comparison
 
 echo "Pipeline complete."
 echo "ITPC outputs: results/poem_itpc"
 echo "ACF-windowed ITPC outputs: results/poem_itpc_acf"
+echo "Four-method comparison: results/method_comparison/four_method_summary.xlsx"
 echo "Exploration outputs: results/exploration"

@@ -11,11 +11,10 @@ import mne
 import numpy as np
 from pydantic import BaseModel, ConfigDict
 
+from adapt_eeg.baseline import IRREGULAR_LINES, REGULAR_LINES
 from adapt_eeg.constants import (
     ENGLISH_COMPETENCE_PARTICIPANTS,
-    IRREGULAR_LINES,
     N_CHANNELS,
-    REGULAR_LINES,
 )
 
 
