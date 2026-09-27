@@ -10,6 +10,7 @@ from adapt_eeg.auto_annotation.classes import (
 )
 from adapt_eeg.auto_annotation.syllable_from_textgrid import load_textgrid_syllable
 from adapt_eeg.auto_annotation.syllable_identifier import syllablize_audio
+from adapt_eeg.constants import POEMS_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -163,3 +164,44 @@ def with_line_boundaries(
         syllablized_audio,
         list(eol_times),
     )
+
+
+def print_line_transcription(id, textgrid_eol_indices):
+    poem_config = POEMS_CONFIG[id]
+    eol_times = derive_eol_times_from_audio(
+        poem_config["audio_url"],
+        poem_config["textgrid_url"],
+        textgrid_eol_indices,
+        intro_end_ms=poem_config["intro_end"],
+    )
+
+    syl_audio = load_textgrid_syllable(
+        poem_config["audio_url"],
+        poem_config["textgrid_url"],
+        50,
+        0.01,
+        (75, 500),
+        -25,
+        90,
+        1,
+    )
+    syl_audio = syl_audio[poem_config["intro_end"] :]
+    transcriptions = [s.transcription for s in syl_audio.syllables]
+
+    previous_index = 0
+    for line_index, (eol_time, eol_idx) in enumerate(
+        zip(eol_times, textgrid_eol_indices)
+    ):
+        print(
+            f"line {line_index}: {eol_time:.6f}s: {transcriptions[previous_index: (eol_idx + 1)]}"
+        )
+        previous_index = eol_idx + 1
+
+    # The final TextGrid EOL index is not included in ``eol_times`` because
+    # there is no following syllable against which to derive a boundary.
+    # Still print the final line for inspection.
+    if previous_index < len(syl_audio.syllables):
+        print(
+            f"line {len(eol_times)}: {syl_audio.syllables[-1].end:.6f}s: "
+            f"{transcriptions[previous_index:]}"
+        )
