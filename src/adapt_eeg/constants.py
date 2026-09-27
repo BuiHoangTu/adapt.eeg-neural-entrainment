@@ -132,8 +132,8 @@ POEMS_CONFIG = [
         "audio_url": DATA_ROOT / "raw-audio/20. Gift of Harun Al rashid.wav",
         "textgrid_url": DATA_ROOT
         / "text-grid/20. the gift of harun al rashid_Final Textgrid",
-        "intro_end": 0,
-        "iambic_pentameter": False,
+        "intro_end": 2600,
+        "iambic_pentameter": True,
     },
     {
         "audio_url": DATA_ROOT / "raw-audio/21. All Souls Night final.wav",
