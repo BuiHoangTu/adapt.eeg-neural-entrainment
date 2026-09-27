@@ -11,7 +11,8 @@ N_CHANNELS = 18
 POEMS_CONFIG = [
     {
         "audio_url": DATA_ROOT / "raw-audio/1. Sailing_to_byzantium_simona_final.wav",
-        "textgrid_url": DATA_ROOT / "text-grid/01_Sailing_to_byzantium_simona_final1_Textgrid.TextGrid",
+        "textgrid_url": DATA_ROOT
+        / "text-grid/01_Sailing_to_byzantium_simona_final1_Textgrid.TextGrid",
         "intro_end": 2500,
         "iambic_pentameter": True,
     },
@@ -26,13 +27,13 @@ POEMS_CONFIG = [
         "textgrid_url": DATA_ROOT
         / "text-grid/03_Meditation_I_VII_Final_textGrid.TextGrid",
         "intro_end": 0,
-        "iambic_pentameter": False,
+        "iambic_pentameter": [(0, 39), (102, 125)],
     },
     {
         "audio_url": DATA_ROOT / "raw-audio/4. Nineteen Nineteen I_VI.wav",
         "textgrid_url": DATA_ROOT / "text-grid/04.NineteenNineteenfinaltextgrid1",
         "intro_end": 0,
-        "iambic_pentameter": False,
+        "iambic_pentameter": [(0, 47), (112, 129)],
     },
     {
         "audio_url": DATA_ROOT / "raw-audio/5. The Wheel.wav",
