@@ -32,8 +32,9 @@ POEMS_CONFIG = [
     {
         "audio_url": DATA_ROOT / "raw-audio/4. Nineteen Nineteen I_VI.wav",
         "textgrid_url": DATA_ROOT / "text-grid/04.NineteenNineteenfinaltextgrid1",
-        "intro_end": 0,
-        "iambic_pentameter": [(0, 47), (112, 129)],
+        "intro_end": 2800,
+        "iambic_pentameter": [(0, 28), (31, 47), (112, 129)],  # [(0, 47), (112, 129)],
+        # but line 29 has missing syllables at line end
     },
     {
         "audio_url": DATA_ROOT / "raw-audio/5. The Wheel.wav",
