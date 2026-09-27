@@ -24,7 +24,9 @@ def _load_textgrid(tg):
     if isinstance(tg, Textgrid):
         return tg
     else:
-        return textgrid.openTextgrid(tg, True)
+        return textgrid.openTextgrid(
+            tg, includeEmptyIntervals=True, duplicateNamesMode="rename"
+        )
 
 
 def _nucleus_from_interval(
