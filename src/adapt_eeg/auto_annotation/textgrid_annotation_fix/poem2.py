@@ -7,7 +7,7 @@ textgrid_eol_indices = [
     9,
     20,
     30,
-    35,
+    # 35, # merge line 4-5 for iambic pentameter-like 
     40,
     49,
     59,
