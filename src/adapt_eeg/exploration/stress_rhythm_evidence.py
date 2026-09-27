@@ -16,9 +16,10 @@ from adapt_eeg.auto_annotation.stress_identifier import (
 from adapt_eeg.auto_annotation.textgrid_annotation_fix import derive_lined_audio
 from adapt_eeg.constants import POEMS_CONFIG
 from adapt_eeg.poem_rhythm import (
-    IRREGULAR_STD_MIN_S,
-    REGULAR_STD_MAX_S,
+    IRREGULAR_CV_MIN,
+    REGULAR_CV_MAX,
     classify_rhythm,
+    inter_stress_interval_cv,
 )
 
 EEG_POEM_IDS = (1, 7, 11, 13)
@@ -123,6 +124,7 @@ def analyze_poem(poem_id: int) -> pd.DataFrame:
         mean_s = float(np.mean(interval_values)) if len(interval_values) else np.nan
         median_s = float(np.median(interval_values)) if len(interval_values) else np.nan
         std_s = float(np.std(interval_values, ddof=0)) if len(interval_values) else np.nan
+        cv = inter_stress_interval_cv(interval_values)
         uniform = _uniform_values(lined_audio.intensity, start_s, end_s)
         spectral_hz = np.nan
         autocorrelation_hz = np.nan
@@ -144,11 +146,11 @@ def analyze_poem(poem_id: int) -> pd.DataFrame:
                 "mean_interval_s": mean_s,
                 "median_interval_s": median_s,
                 "std_interval_s": std_s,
-                "coefficient_of_variation": std_s / mean_s if mean_s > 0 else np.nan,
+                "coefficient_of_variation": cv,
                 "stress_frequency_hz": 1 / median_s if median_s > 0 else np.nan,
                 "intensity_spectral_peak_hz": spectral_hz,
                 "intensity_autocorrelation_peak_hz": autocorrelation_hz,
-                "rhythm_condition": classify_rhythm(std_s),
+                "rhythm_condition": classify_rhythm(cv),
             }
         )
     return pd.DataFrame(rows)
@@ -168,6 +170,9 @@ def summarize_by_poem(lines: pd.DataFrame) -> pd.DataFrame:
                 "median_line_mean_interval_s": frame["mean_interval_s"].median(),
                 "median_line_median_interval_s": frame["median_interval_s"].median(),
                 "median_line_std_interval_s": frame["std_interval_s"].median(),
+                "median_line_coefficient_of_variation": frame[
+                    "coefficient_of_variation"
+                ].median(),
                 "median_stress_frequency_hz": frame["stress_frequency_hz"].median(),
                 "median_intensity_spectral_peak_hz": frame[
                     "intensity_spectral_peak_hz"
@@ -219,10 +224,10 @@ def window_feasibility(lines: pd.DataFrame) -> pd.DataFrame:
 
 def save_distribution(lines: pd.DataFrame, output_path: Path) -> None:
     figure, axes = plt.subplots(1, 2, figsize=(11, 4.5))
-    axes[0].hist(lines["std_interval_s"].dropna(), bins=20)
-    axes[0].axvline(REGULAR_STD_MAX_S, color="green", linestyle="--")
-    axes[0].axvline(IRREGULAR_STD_MIN_S, color="red", linestyle="--")
-    axes[0].set(xlabel="Inter-stress interval SD (s)", ylabel="Lines")
+    axes[0].hist(lines["coefficient_of_variation"].dropna(), bins=20)
+    axes[0].axvline(REGULAR_CV_MAX, color="green", linestyle="--")
+    axes[0].axvline(IRREGULAR_CV_MIN, color="red", linestyle="--")
+    axes[0].set(xlabel="Inter-stress interval CV", ylabel="Lines")
 
     frequency_columns = {
         "stress_frequency_hz": "Stress intervals",
