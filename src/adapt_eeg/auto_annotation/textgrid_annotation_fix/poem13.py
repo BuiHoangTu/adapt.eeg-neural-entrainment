@@ -1,8 +1,6 @@
-from adapt_eeg.auto_annotation.syllable_from_textgrid import load_textgrid_syllable
 from adapt_eeg.auto_annotation.textgrid_annotation_fix.common import (
-    derive_eol_times_from_audio,
+    print_line_transcription,
 )
-from adapt_eeg.constants import POEMS_CONFIG
 
 textgrid_eol_indices = [
     9,
