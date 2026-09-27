@@ -116,7 +116,11 @@ def _test_row(label: int | str, participant_poem: pd.DataFrame) -> dict:
         aggfunc="mean",
     ).dropna(subset=["regular", "irregular"])
     differences = paired["regular"] - paired["irregular"]
-    wilcoxon = stats.wilcoxon(paired["regular"], paired["irregular"])
+    wilcoxon = stats.wilcoxon(
+        paired["regular"],
+        paired["irregular"],
+        alternative="greater",
+    )
     groups = {
         name: values.to_numpy()
         for name, values in differences.groupby(level="language_group")
@@ -147,7 +151,7 @@ def _test_row(label: int | str, participant_poem: pd.DataFrame) -> dict:
 
 
 def summarize(full: pd.DataFrame) -> pd.DataFrame:
-    """Use participant-poem means and equal poem weights in the Total row."""
+    """Summarize poems separately and pool all lines for the Total row."""
     participant_poem = (
         full.groupby(
             ["poem", "participant", "language_group", "rhythm_condition"],
@@ -159,14 +163,27 @@ def summarize(full: pd.DataFrame) -> pd.DataFrame:
         _test_row(int(poem), frame)
         for poem, frame in participant_poem.groupby("poem", sort=True)
     ]
-    equal_poem_total = (
-        participant_poem.groupby(
+    participant_lines = (
+        full.groupby(
+            [
+                "poem",
+                "line",
+                "participant",
+                "language_group",
+                "rhythm_condition",
+            ],
+            as_index=False,
+        )["itpc_squared_debiased"]
+        .mean()
+    )
+    pooled_line_total = (
+        participant_lines.groupby(
             ["participant", "language_group", "rhythm_condition"],
             as_index=False,
         )["itpc_squared_debiased"]
         .mean()
     )
-    rows.append(_test_row("Total", equal_poem_total))
+    rows.append(_test_row("Total", pooled_line_total))
     return pd.DataFrame(rows)
 
 

@@ -33,7 +33,12 @@ from adapt_eeg.poem_itpc import (
     participant_condition_table,
     usable_eeg_channels,
 )
-from adapt_eeg.poem_rhythm import PoemLineTiming, derive_poem_line_timings, poem_stress_frequency
+from adapt_eeg.poem_rhythm import (
+    PoemLineTiming,
+    classify_rhythm,
+    derive_poem_line_timings,
+    poem_stress_frequency,
+)
 
 N_LINE_INTERVALS = 30
 PRE_ANCHOR_FRACTION = 1.0 / 3.0
@@ -65,6 +70,12 @@ def load_or_derive_timings(
         missing = set(poems) - available
         if missing:
             raise ValueError(f"{rhythm_csv} is missing poems {sorted(missing)}")
+        if "coefficient_of_variation" not in frame.columns:
+            frame["coefficient_of_variation"] = np.where(
+                frame["mean_interval_s"] > 0,
+                frame["std_interval_s"] / frame["mean_interval_s"],
+                np.nan,
+            )
         timings = {}
         for poem in poems:
             rows = frame.loc[frame["poem"] == poem].sort_values("line_index")
@@ -78,8 +89,11 @@ def load_or_derive_timings(
                     mean_interval_s=float(row.mean_interval_s),
                     median_interval_s=float(row.median_interval_s),
                     std_interval_s=float(row.std_interval_s),
+                    coefficient_of_variation=float(row.coefficient_of_variation),
                     stress_frequency_hz=float(row.stress_frequency_hz),
-                    rhythm_condition=str(row.rhythm_condition),
+                    rhythm_condition=classify_rhythm(
+                        float(row.coefficient_of_variation)
+                    ),
                 )
                 for row in rows.itertuples(index=False)
             ]
@@ -114,7 +128,11 @@ def paper_condition_stats_by_poem(full: pd.DataFrame) -> pd.DataFrame:
         group: values.to_numpy()
         for group, values in differences.groupby(level="language_group")
     }
-    wilcoxon = stats.wilcoxon(paired["regular"], paired["irregular"])
+    wilcoxon = stats.wilcoxon(
+        paired["regular"],
+        paired["irregular"],
+        alternative="greater",
+    )
     mannwhitney = stats.mannwhitneyu(
         grouped["english_competence"],
         grouped["non_english_competence"],
@@ -222,6 +240,7 @@ def analyze_recording(
                             "line": line.line_number,
                             "rhythm_condition": line.rhythm_condition,
                             "rhythm_std_s": line.std_interval_s,
+                            "rhythm_cv": line.coefficient_of_variation,
                             "median_inter_stress_interval_s": line.median_interval_s,
                             "stress_frequency_hz": line.stress_frequency_hz,
                             "frequency_source": "poem_mean_stress_interval",

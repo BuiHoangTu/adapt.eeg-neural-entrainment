@@ -11,8 +11,8 @@ from adapt_eeg.auto_annotation.stress_identifier import (
 from adapt_eeg.auto_annotation.textgrid_annotation_fix import derive_lined_audio
 from adapt_eeg.constants import POEMS_CONFIG
 
-REGULAR_STD_MAX_S = 0.15
-IRREGULAR_STD_MIN_S = 0.25
+REGULAR_CV_MAX = 0.40
+IRREGULAR_CV_MIN = 0.55
 
 
 @dataclass(frozen=True)
@@ -25,16 +25,29 @@ class PoemLineTiming:
     mean_interval_s: float
     median_interval_s: float
     std_interval_s: float
+    coefficient_of_variation: float
     stress_frequency_hz: float
     rhythm_condition: str
 
 
-def classify_rhythm(std_s: float) -> str:
-    if not np.isfinite(std_s):
+def inter_stress_interval_cv(intervals: np.ndarray | list[float]) -> float:
+    """Return population-SD CV for stress-to-stress intervals."""
+    values = np.asarray(intervals, dtype=float)
+    if values.size == 0 or not np.all(np.isfinite(values)):
+        return np.nan
+    mean_s = float(np.mean(values))
+    if mean_s <= 0:
+        return np.nan
+    return float(np.std(values, ddof=0) / mean_s)
+
+
+def classify_rhythm(coefficient_of_variation: float) -> str:
+    """Classify a line from the CV of its stress-to-stress intervals."""
+    if not np.isfinite(coefficient_of_variation):
         return "ambiguous"
-    if std_s < REGULAR_STD_MAX_S:
+    if coefficient_of_variation < REGULAR_CV_MAX:
         return "regular"
-    if std_s > IRREGULAR_STD_MIN_S:
+    if coefficient_of_variation > IRREGULAR_CV_MIN:
         return "irregular"
     return "ambiguous"
 
@@ -62,6 +75,7 @@ def derive_poem_line_timings(poem: int) -> list[PoemLineTiming]:
         mean_s = float(np.mean(values)) if len(values) else np.nan
         median_s = float(np.median(values)) if len(values) else np.nan
         std_s = float(np.std(values, ddof=0)) if len(values) else np.nan
+        cv = inter_stress_interval_cv(values)
         lines.append(
             PoemLineTiming(
                 poem=poem,
@@ -72,8 +86,9 @@ def derive_poem_line_timings(poem: int) -> list[PoemLineTiming]:
                 mean_interval_s=mean_s,
                 median_interval_s=median_s,
                 std_interval_s=std_s,
+                coefficient_of_variation=cv,
                 stress_frequency_hz=1 / median_s if median_s > 0 else np.nan,
-                rhythm_condition=classify_rhythm(std_s),
+                rhythm_condition=classify_rhythm(cv),
             )
         )
     return lines

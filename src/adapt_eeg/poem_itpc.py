@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from adapt_eeg.constants import ENGLISH_COMPETENCE_PARTICIPANTS
+from adapt_eeg.constants import ENGLISH_COMPETENCE_PARTICIPANTS, POEMS_CONFIG
 from adapt_eeg.poem_eeg import (
     InvalidPoemRecordingError,
     PoemRecording,
@@ -186,6 +186,7 @@ def analyze_recording(
                         "line": line.line_number,
                         "rhythm_condition": line.rhythm_condition,
                         "rhythm_std_s": line.std_interval_s,
+                        "rhythm_cv": line.coefficient_of_variation,
                         "median_inter_stress_interval_s": line.median_interval_s,
                         "stress_frequency_hz": line.stress_frequency_hz,
                         "frequency_source": "poem_mean_stress_interval",
@@ -264,6 +265,7 @@ def condition_stats_table(participant_condition: pd.DataFrame) -> pd.DataFrame:
                     paired["regular"],
                     paired["irregular"],
                     zero_method="wilcox",
+                    alternative="greater",
                 )
                 wilcoxon_statistic = float(wilcoxon.statistic)
                 wilcoxon_pvalue = float(wilcoxon.pvalue)
@@ -365,7 +367,11 @@ def condition_stats_by_poem(full: pd.DataFrame) -> pd.DataFrame:
             values="itpc_squared_debiased",
         ).dropna(subset=["regular", "irregular"])
         differences = paired["regular"] - paired["irregular"]
-        wilcoxon = stats.wilcoxon(paired["regular"], paired["irregular"])
+        wilcoxon = stats.wilcoxon(
+            paired["regular"],
+            paired["irregular"],
+            alternative="greater",
+        )
         grouped = {
             group: values.to_numpy()
             for group, values in differences.groupby(level="language_group")
@@ -457,7 +463,11 @@ def export_xlsx(full: pd.DataFrame, output_path: Path) -> None:
 
 def run(data_root: Path, output_dir: Path, *, fail_on_errors: bool = True) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    discovered_paths = discover_ica_cleaned_files(data_root)
+    discovered_paths = [
+        path
+        for path in discover_ica_cleaned_files(data_root)
+        if POEMS_CONFIG[ids_from_path(path)[0] - 1]["iambic_pentameter"]
+    ]
     paths, duplicate_paths = unique_recording_paths(discovered_paths)
     poems = sorted({ids_from_path(path)[0] for path in discovered_paths})
     timings = {poem: derive_poem_line_timings(poem) for poem in poems}
