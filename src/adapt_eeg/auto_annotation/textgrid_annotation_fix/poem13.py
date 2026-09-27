@@ -72,37 +72,8 @@ textgrid_eol_indices = [
 ]
 
 
-def main() -> list[float]:
-    poem_config = POEMS_CONFIG[12]
-    eol_times = derive_eol_times_from_audio(
-        poem_config["audio_url"],
-        poem_config["textgrid_url"],
-        textgrid_eol_indices,
-        intro_end_ms=poem_config["intro_end"],
-    )
-
-    syl_audio = load_textgrid_syllable(
-        poem_config["audio_url"],
-        poem_config["textgrid_url"],
-        50,
-        0.01,
-        (75, 500),
-        -25,
-        90,
-        1,
-    )
-    syl_audio = syl_audio[poem_config["intro_end"] :]
-    transcriptions = [s.transcription for s in syl_audio.syllables]
-
-    previous_index = 0
-    for line_index, (eol_time, eol_idx) in enumerate(
-        zip(eol_times, textgrid_eol_indices)
-    ):
-        print(
-            f"line {line_index}: {eol_time:.6f}s: {transcriptions[previous_index: (eol_idx + 1)]}"
-        )
-        previous_index = eol_idx + 1
-    return eol_times
+def main():
+    print_line_transcription(12, textgrid_eol_indices)
 
 
 if __name__ == "__main__":

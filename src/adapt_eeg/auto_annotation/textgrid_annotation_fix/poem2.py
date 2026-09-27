@@ -1,7 +1,6 @@
 from adapt_eeg.auto_annotation.textgrid_annotation_fix.common import (
-    derive_eol_times_from_audio,
+    print_line_transcription,
 )
-from adapt_eeg.constants import POEMS_CONFIG
 
 textgrid_eol_indices = [
     9,
@@ -203,17 +202,8 @@ textgrid_eol_indices = [
 ]
 
 
-def main() -> list[float]:
-    poem_config = POEMS_CONFIG[1]
-    eol_times = derive_eol_times_from_audio(
-        poem_config["audio_url"],
-        poem_config["textgrid_url"],
-        textgrid_eol_indices,
-        intro_end_ms=poem_config["intro_end"],
-    )
-    for line_index, eol_time in enumerate(eol_times):
-        print(f"line {line_index}: {eol_time:.6f}s")
-    return eol_times
+def main():
+    print_line_transcription(1, textgrid_eol_indices)
 
 
 if __name__ == "__main__":
