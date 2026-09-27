@@ -26,7 +26,7 @@ POEMS_CONFIG = [
         "audio_url": DATA_ROOT / "raw-audio/3. Meditation I_VII.wav",
         "textgrid_url": DATA_ROOT
         / "text-grid/03_Meditation_I_VII_Final_textGrid.TextGrid",
-        "intro_end": 0,
+        "intro_end": 5000,
         "iambic_pentameter": [(0, 39), (102, 125)],
     },
     {
