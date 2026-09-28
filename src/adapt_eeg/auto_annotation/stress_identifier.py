@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 
 from adapt_eeg.auto_annotation.classes import (
@@ -275,6 +277,9 @@ def classify_top_stresses_per_line(
     weights: tuple[float, float, float],
     line_boundaries: list[float],
     stressed_syllables_per_line: int,
+    *,
+    eligible_line_indices: set[int] | None = None,
+    insufficient_as_ambiguous: bool = False,
 ) -> list[bool]:
     if stressed_syllables_per_line < 0:
         raise ValueError("stressed_syllables_per_line cannot be negative.")
@@ -284,6 +289,11 @@ def classify_top_stresses_per_line(
     stressed = [False] * len(evidence)
 
     for line_index, line_slice in enumerate(_line_slices(syllables, line_boundaries)):
+        if (
+            eligible_line_indices is not None
+            and line_index not in eligible_line_indices
+        ):
+            continue
         start = line_slice.start or 0
         end = line_slice.stop or 0
         line_syllables = syllables[start:end]
@@ -295,13 +305,17 @@ def classify_top_stresses_per_line(
         ]
 
         if len(scoreable_indices) < stressed_syllables_per_line:
-            raise InsufficientEligibleSyllablesError(
+            error = InsufficientEligibleSyllablesError(
                 line_index=line_index,
                 required_count=stressed_syllables_per_line,
                 syllables=line_syllables,
                 evidence=line_evidence,
                 syllable_offset=start,
             )
+            if insufficient_as_ambiguous:
+                warnings.warn(f"{error} Marking the line ambiguous.", stacklevel=2)
+                continue
+            raise error
 
         # The fifth-highest score is the dynamic threshold. Stable index
         # ordering breaks ties so that every line has exactly the requested
@@ -320,6 +334,9 @@ def classify_top_stresses_per_line(
 def flag_stressed_syllables(
     syllablized_audio: LinedAudio,
     params: StressIdentifyParams = DEFAULT_PARAMS,
+    *,
+    eligible_line_indices: set[int] | None = None,
+    insufficient_as_ambiguous: bool = False,
 ) -> list[bool]:
     evidence = calculate_stress_evidence(
         syllablized_audio,
@@ -337,6 +354,8 @@ def flag_stressed_syllables(
         weights,
         syllablized_audio.line_boundaries,
         params.stressed_syllables_per_line,
+        eligible_line_indices=eligible_line_indices,
+        insufficient_as_ambiguous=insufficient_as_ambiguous,
     )
 
     return stress_flags
@@ -361,9 +380,17 @@ def detect_stressed_syllables(
 def calculate_inter_stress_distances(
     lined_audio: LinedAudio,
     params: StressIdentifyParams = DEFAULT_PARAMS,
+    *,
+    eligible_line_indices: set[int] | None = None,
+    insufficient_as_ambiguous: bool = False,
 ) -> list[list[float]]:
     """Return consecutive stressed-nucleus distances in seconds for each line."""
-    stress_flags = flag_stressed_syllables(lined_audio, params)
+    stress_flags = flag_stressed_syllables(
+        lined_audio,
+        params,
+        eligible_line_indices=eligible_line_indices,
+        insufficient_as_ambiguous=insufficient_as_ambiguous,
+    )
 
     distances_per_line = []
     for line_slice in _line_slices(

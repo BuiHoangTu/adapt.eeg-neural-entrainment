@@ -9,10 +9,11 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from adapt_eeg.constants import ENGLISH_COMPETENCE_PARTICIPANTS, POEMS_CONFIG
+from adapt_eeg.constants import ENGLISH_COMPETENCE_PARTICIPANTS
 from adapt_eeg.poem_eeg import (
     InvalidPoemRecordingError,
     PoemRecording,
+    aligned_line_end_s,
     discover_ica_cleaned_files,
     ids_from_path,
     load_poem_recording,
@@ -21,7 +22,9 @@ from adapt_eeg.poem_eeg import (
 from adapt_eeg.poem_rhythm import (
     PoemLineTiming,
     derive_poem_line_timings,
+    poem_has_iambic_lines,
     poem_stress_frequency,
+    select_iambic_lines,
 )
 
 CYCLES_PER_WINDOW = 2.0
@@ -65,15 +68,9 @@ def line_epochs(
     line: PoemLineTiming,
     channel_names: list[str],
     frequency_hz: float,
-    *,
-    is_final_line: bool,
 ) -> mne.Epochs:
     absolute_start_s = recording.usable_start_s + line.start_s
-    absolute_end_s = (
-        recording.usable_end_s
-        if is_final_line
-        else recording.usable_start_s + line.end_s
-    )
+    absolute_end_s = aligned_line_end_s(recording, line.end_s)
     if absolute_start_s >= absolute_end_s:
         raise ValueError(
             f"poem {line.poem} line {line.line_number}: non-positive EEG interval"
@@ -157,17 +154,12 @@ def analyze_recording(
                 line,
                 channel_names,
                 frequency_hz,
-                is_final_line=line.line_index == len(lines) - 1,
             )
             values, valid_counts = fourier_itpc(epochs, frequency_hz)
             debiased_values = debiased_squared_itpc(values, valid_counts)
             channel_names = epochs.ch_names
             absolute_start_s = recording.usable_start_s + line.start_s
-            absolute_end_s = (
-                recording.usable_end_s
-                if line.line_index == len(lines) - 1
-                else recording.usable_start_s + line.end_s
-            )
+            absolute_end_s = aligned_line_end_s(recording, line.end_s)
             window_s, shift_s = epoch_timing(frequency_hz)
             for channel, value, debiased_value, valid_count in zip(
                 channel_names,
@@ -461,16 +453,32 @@ def export_xlsx(full: pd.DataFrame, output_path: Path) -> None:
             worksheet.set_column(1, len(columns), 10)
 
 
-def run(data_root: Path, output_dir: Path, *, fail_on_errors: bool = True) -> None:
+def run(
+    data_root: Path,
+    output_dir: Path,
+    *,
+    fail_on_errors: bool = True,
+    insufficient_as_ambiguous: bool = False,
+) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     discovered_paths = [
         path
         for path in discover_ica_cleaned_files(data_root)
-        if POEMS_CONFIG[ids_from_path(path)[0] - 1]["iambic_pentameter"]
+        if poem_has_iambic_lines(ids_from_path(path)[0])
     ]
     paths, duplicate_paths = unique_recording_paths(discovered_paths)
     poems = sorted({ids_from_path(path)[0] for path in discovered_paths})
-    timings = {poem: derive_poem_line_timings(poem) for poem in poems}
+    all_timings = {
+        poem: derive_poem_line_timings(
+            poem,
+            insufficient_as_ambiguous=insufficient_as_ambiguous,
+        )
+        for poem in poems
+    }
+    timings = {
+        poem: select_iambic_lines(poem, lines)
+        for poem, lines in all_timings.items()
+    }
     frequencies = {
         poem: poem_stress_frequency(lines) for poem, lines in timings.items()
     }
@@ -578,8 +586,18 @@ def main() -> None:
         action="store_true",
         help="Return success after writing valid outputs even when files are rejected.",
     )
+    parser.add_argument(
+        "--insufficient-as-ambiguous",
+        action="store_true",
+        help="Warn and mark selected lines with fewer than five scoreable syllables ambiguous.",
+    )
     args = parser.parse_args()
-    run(args.data_root, args.output_dir, fail_on_errors=not args.allow_errors)
+    run(
+        args.data_root,
+        args.output_dir,
+        fail_on_errors=not args.allow_errors,
+        insufficient_as_ambiguous=args.insufficient_as_ambiguous,
+    )
 
 
 if __name__ == "__main__":

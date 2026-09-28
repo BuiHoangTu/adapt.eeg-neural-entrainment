@@ -15,6 +15,7 @@ from adapt_eeg.exploration.stress_rhythm_evidence import EEG_POEM_IDS
 from adapt_eeg.poem_eeg import (
     InvalidPoemRecordingError,
     PoemRecording,
+    aligned_line_end_s,
     discover_ica_cleaned_files,
     ids_from_path,
     load_poem_recording,
@@ -38,6 +39,7 @@ from adapt_eeg.poem_rhythm import (
     classify_rhythm,
     derive_poem_line_timings,
     poem_stress_frequency,
+    select_iambic_lines,
 )
 
 N_LINE_INTERVALS = 30
@@ -62,6 +64,8 @@ def paper_window_configuration(poems: list[int]) -> pd.DataFrame:
 def load_or_derive_timings(
     poems: list[int],
     rhythm_csv: Path,
+    *,
+    insufficient_as_ambiguous: bool = False,
 ) -> dict[int, list[PoemLineTiming]]:
     """Reuse the cycle-aligned line classification so both analyses match."""
     if rhythm_csv.exists():
@@ -98,7 +102,16 @@ def load_or_derive_timings(
                 for row in rows.itertuples(index=False)
             ]
         return timings
-    return {poem: derive_poem_line_timings(poem) for poem in poems}
+    return {
+        poem: select_iambic_lines(
+            poem,
+            derive_poem_line_timings(
+                poem,
+                insufficient_as_ambiguous=insufficient_as_ambiguous,
+            ),
+        )
+        for poem in poems
+    }
 
 
 def paper_condition_stats_by_poem(full: pd.DataFrame) -> pd.DataFrame:
@@ -168,11 +181,9 @@ def acf_line_epochs(
     line: PoemLineTiming,
     channel_names: list[str],
     window_s: float,
-    *,
-    is_final_line: bool,
 ) -> mne.Epochs:
     start_s = recording.usable_start_s + line.start_s
-    end_s = recording.usable_end_s if is_final_line else recording.usable_start_s + line.end_s
+    end_s = aligned_line_end_s(recording, line.end_s)
     if start_s >= end_s:
         raise ValueError(f"poem {line.poem} line {line.line_number}: non-positive interval")
 
@@ -221,11 +232,10 @@ def analyze_recording(
     channel_names = usable_eeg_channels(recording.raw)
     for line in (item for item in lines if item.rhythm_condition != "ambiguous"):
         try:
-            final = line.line_index == len(lines) - 1
-            epochs = acf_line_epochs(recording, line, channel_names, window_s, is_final_line=final)
+            epochs = acf_line_epochs(recording, line, channel_names, window_s)
             values, counts = fourier_itpc(epochs, frequency_hz)
             debiased = debiased_squared_itpc(values, counts)
-            end_s = recording.usable_end_s if final else recording.usable_start_s + line.end_s
+            end_s = aligned_line_end_s(recording, line.end_s)
             start_s = recording.usable_start_s + line.start_s
             shift_s = (end_s - start_s) / N_LINE_INTERVALS
             for channel, value, corrected, count in zip(
@@ -275,6 +285,7 @@ def run(
     *,
     rhythm_csv: Path = DEFAULT_RHYTHM_CSV,
     fail_on_errors: bool = True,
+    insufficient_as_ambiguous: bool = False,
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     discovered = [
@@ -284,7 +295,11 @@ def run(
     ]
     paths, duplicates = unique_recording_paths(discovered)
     poems = sorted({ids_from_path(path)[0] for path in discovered})
-    timings = load_or_derive_timings(poems, rhythm_csv)
+    timings = load_or_derive_timings(
+        poems,
+        rhythm_csv,
+        insufficient_as_ambiguous=insufficient_as_ambiguous,
+    )
     frequencies = {poem: poem_stress_frequency(lines) for poem, lines in timings.items()}
     config = paper_window_configuration(poems)
     config["itpc_frequency_hz"] = config["poem"].map(frequencies)
@@ -355,12 +370,14 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, default=Path("results/poem_itpc_acf"))
     parser.add_argument("--rhythm-csv", type=Path, default=DEFAULT_RHYTHM_CSV)
     parser.add_argument("--allow-errors", action="store_true")
+    parser.add_argument("--insufficient-as-ambiguous", action="store_true")
     args = parser.parse_args()
     run(
         args.data_root,
         args.output_dir,
         rhythm_csv=args.rhythm_csv,
         fail_on_errors=not args.allow_errors,
+        insufficient_as_ambiguous=args.insufficient_as_ambiguous,
     )
 
 

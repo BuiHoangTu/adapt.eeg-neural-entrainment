@@ -19,10 +19,11 @@ from adapt_eeg.poem_rhythm import (
     IRREGULAR_CV_MIN,
     REGULAR_CV_MAX,
     classify_rhythm,
+    iambic_poem_ids,
     inter_stress_interval_cv,
 )
 
-EEG_POEM_IDS = (1, 7, 11, 13)
+EEG_POEM_IDS = iambic_poem_ids()
 MIN_RHYTHM_HZ = 1.0
 MAX_RHYTHM_HZ = 5.0
 

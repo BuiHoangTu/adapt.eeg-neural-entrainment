@@ -113,7 +113,7 @@ def derive_eol_times_from_audio(
     textgrid_eol_indices: Sequence[int],
     *,
     intro_end_ms: int,
-    params: SyllableIdentifyParams = SyllableIdentifyParams(),
+    params: SyllableIdentifyParams = SyllableIdentifyParams(),  # noqa: B008
 ) -> list[float]:
     """Load both alignments, remove the intro, and derive automatic EOL times."""
     return derive_lined_audio(
@@ -131,7 +131,7 @@ def derive_lined_audio(
     textgrid_eol_indices: Sequence[int],
     *,
     intro_end_ms: int,
-    params: SyllableIdentifyParams = SyllableIdentifyParams(),
+    params: SyllableIdentifyParams = SyllableIdentifyParams(),  # noqa: B008
 ) -> LinedAudio:
     """Load both alignments and return automatic audio with derived line boundaries."""
     manual = load_textgrid_syllable(
@@ -186,7 +186,7 @@ def print_line_transcription(id, textgrid_eol_indices):
         1,
     )
     syl_audio = syl_audio[poem_config["intro_end"] :]
-    transcriptions = [s.transcription for s in syl_audio.syllables]
+    transcriptions = [s.transcription for s in syl_audio.syllables]  # type: ignore
 
     previous_index = 0
     for line_index, (eol_time, eol_idx) in enumerate(

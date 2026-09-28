@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import mne
+import numpy as np
 import parselmouth
 
 from adapt_eeg.constants import POEMS_CONFIG
@@ -29,6 +30,18 @@ class PoemRecording:
     usable_end_s: float
     expected_audio_duration_s: float
     duration_error_s: float
+
+
+def aligned_line_end_s(recording: PoemRecording, line_end_s: float) -> float:
+    """Map an audio-relative line end to EEG, preserving the true poem end."""
+    if np.isclose(
+        line_end_s,
+        recording.expected_audio_duration_s,
+        atol=MAX_DURATION_ERROR_S,
+        rtol=0.0,
+    ):
+        return recording.usable_end_s
+    return recording.usable_start_s + line_end_s
 
 
 def discover_ica_cleaned_files(data_root: Path) -> list[Path]:
