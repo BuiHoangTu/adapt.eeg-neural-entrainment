@@ -6,6 +6,10 @@
 data/*
 raw/itpc-30event-good/.gitkeep
 
+# local test
+test*
+!tests/
+!tests/**
 # python generated
 __pycache__/
 *.py[cod]
@@ -14,6 +18,3 @@ build/
 
 # generated output
 results
-
-# local test
-test*
