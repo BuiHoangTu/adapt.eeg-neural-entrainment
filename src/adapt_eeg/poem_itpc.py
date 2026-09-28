@@ -41,10 +41,18 @@ def language_group(participant: int) -> str:
     )
 
 
-def epoch_timing(frequency_hz: float) -> tuple[float, float]:
+def epoch_timing(
+    frequency_hz: float,
+    cycles_per_window: float = CYCLES_PER_WINDOW,
+    shift_cycles: float = SHIFT_CYCLES,
+) -> tuple[float, float]:
     if frequency_hz <= 0:
         raise ValueError("frequency_hz must be positive")
-    return CYCLES_PER_WINDOW / frequency_hz, SHIFT_CYCLES / frequency_hz
+    if cycles_per_window <= 0 or shift_cycles <= 0:
+        raise ValueError("cycle window and slide must be positive")
+    if shift_cycles > cycles_per_window:
+        raise ValueError("shift_cycles cannot exceed cycles_per_window")
+    return cycles_per_window / frequency_hz, shift_cycles / frequency_hz
 
 
 def usable_eeg_channels(raw: mne.io.BaseRaw) -> list[str]:
@@ -68,6 +76,8 @@ def line_epochs(
     line: PoemLineTiming,
     channel_names: list[str],
     frequency_hz: float,
+    cycles_per_window: float = CYCLES_PER_WINDOW,
+    shift_cycles: float = SHIFT_CYCLES,
 ) -> mne.Epochs:
     absolute_start_s = recording.usable_start_s + line.start_s
     absolute_end_s = aligned_line_end_s(recording, line.end_s)
@@ -81,7 +91,11 @@ def line_epochs(
         tmax=absolute_end_s,
         include_tmax=False,
     )
-    window_s, shift_s = epoch_timing(frequency_hz)
+    window_s, shift_s = epoch_timing(
+        frequency_hz,
+        cycles_per_window,
+        shift_cycles,
+    )
     if cropped.duration < window_s:
         raise ValueError(
             f"line duration {cropped.duration:.6f}s is shorter than the "
@@ -142,6 +156,8 @@ def analyze_recording(
     recording: PoemRecording,
     lines: list[PoemLineTiming],
     frequency_hz: float,
+    cycles_per_window: float = CYCLES_PER_WINDOW,
+    shift_cycles: float = SHIFT_CYCLES,
 ) -> tuple[list[dict], list[dict]]:
     rows = []
     errors = []
@@ -154,13 +170,19 @@ def analyze_recording(
                 line,
                 channel_names,
                 frequency_hz,
+                cycles_per_window,
+                shift_cycles,
             )
             values, valid_counts = fourier_itpc(epochs, frequency_hz)
             debiased_values = debiased_squared_itpc(values, valid_counts)
             channel_names = epochs.ch_names
             absolute_start_s = recording.usable_start_s + line.start_s
             absolute_end_s = aligned_line_end_s(recording, line.end_s)
-            window_s, shift_s = epoch_timing(frequency_hz)
+            window_s, shift_s = epoch_timing(
+                frequency_hz,
+                cycles_per_window,
+                shift_cycles,
+            )
             for channel, value, debiased_value, valid_count in zip(
                 channel_names,
                 values,
@@ -183,8 +205,8 @@ def analyze_recording(
                         "stress_frequency_hz": line.stress_frequency_hz,
                         "frequency_source": "poem_mean_stress_interval",
                         "frequency_hz": frequency_hz,
-                        "cycles_per_window": CYCLES_PER_WINDOW,
-                        "shift_cycles": SHIFT_CYCLES,
+                        "cycles_per_window": cycles_per_window,
+                        "shift_cycles": shift_cycles,
                         "window_duration_s": window_s,
                         "window_shift_s": shift_s,
                         "n_windows": len(epochs),
