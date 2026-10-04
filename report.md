@@ -154,7 +154,94 @@ sensitivity checks.
 | 20 | 1.790 | -0.035563 | 0 | 1.000000 | -0.001261 | 236 | 0.602559 |
 | **Overall** | **Varies** | **-0.022538** | **0** | **1.000000** | **0.000386** | **322** | **0.791899** |
 
-## Primary analysis configuration 
-cycle-aligned windows with 2 cycles per
-window and a 1-cycle slide (`2–1`). All other window configurations reported
-below are sensitivity analyses.
+## Chosen configuration: cycle-aligned 2–1
+
+These results aggregate all eligible poems and lines within participant and
+EEG channel; poem-wise results are not used here. `f` is each poem's implied
+stress frequency and `2f` is its doubled frequency (the expected syllable-rate
+proxy). Channel-wise p-values are uncorrected for multiple comparisons.
+
+### Regular minus irregular
+
+The Wilcoxon test is one-sided for the planned hypothesis that regular ITPC is
+greater than irregular ITPC.
+
+| Channel | Freq. | Regular minus Irregular | Wilcoxon W (one-sided) | Wilcoxon p (one-sided) |
+| --- | --- | ---: | ---: | ---: |
+| C3 | f | 0.007507 | 789 | 0.073009 |
+| C4 | f | 0.008761 | 775 | 0.093842 |
+| F3 | f | 0.002875 | 667 | 0.390697 |
+| F4 | f | 0.012132 | 786 | 0.077151 |
+| F7 | f | 0.008767 | 818 | **0.041134** |
+| F8 | f | 0.020109 | 911 | **0.003805** |
+| Fp1 | f | 0.007657 | 773 | 0.097138 |
+| Fp2 | f | 0.003964 | 674 | 0.365224 |
+| Fz | f | 0.003441 | 723 | 0.207596 |
+| O1 | f | 0.007043 | 730 | 0.188837 |
+| O2 | f | 0.008771 | 795 | 0.065229 |
+| P3 | f | 0.000829 | 677 | 0.354476 |
+| P4 | f | 0.003366 | 776 | 0.092224 |
+| P7 | f | 0.002266 | 676 | 0.358047 |
+| P8 | f | 0.010436 | 822 | **0.037781** |
+| Pz | f | 0.002025 | 663 | 0.405470 |
+| T7 | f | 0.017304 | 910 | **0.003922** |
+| T8 | f | 0.014862 | 811 | **0.047567** |
+| **All EEG channels** | **f** | **0.007895** | **855** | **0.017696** |
+
+![One-sided p-values by EEG channel for regular minus irregular ITPC](results/frequency_comparison/chosen_2-1_regular_minus_irregular_one_sided_p.png)
+
+### Regular lines: poetic frequency minus doubled poetic frequency
+
+The one-sided test uses the hypothesis `f > 2f`; the two-sided test evaluates
+any difference between the frequencies.
+
+| Channel | Freq. | Regular f minus Regular 2f | W (one-sided) | p (one-sided) | W (two-sided) | p (two-sided) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| C3 | f minus 2f | -0.001207 | 628 | 0.538109 | 628 | 0.931384 |
+| C4 | f minus 2f | 0.010150 | 821 | **0.038598** | 454 | 0.077196 |
+| F3 | f minus 2f | 0.006720 | 743 | 0.156833 | 532 | 0.313666 |
+| F4 | f minus 2f | 0.015673 | 836 | **0.027733** | 439 | 0.055466 |
+| F7 | f minus 2f | 0.007357 | 744 | 0.154526 | 531 | 0.309051 |
+| F8 | f minus 2f | 0.015939 | 859 | **0.016027** | 416 | **0.032053** |
+| Fp1 | f minus 2f | 0.007703 | 721 | 0.213148 | 554 | 0.426296 |
+| Fp2 | f minus 2f | 0.006136 | 710 | 0.245163 | 565 | 0.490326 |
+| Fz | f minus 2f | 0.013390 | 854 | **0.018135** | 421 | **0.036270** |
+| O1 | f minus 2f | 0.009107 | 777 | 0.090627 | 498 | 0.181255 |
+| O2 | f minus 2f | 0.014052 | 866 | **0.013424** | 409 | **0.026849** |
+| P3 | f minus 2f | 0.003287 | 695 | 0.292603 | 580 | 0.585207 |
+| P4 | f minus 2f | 0.009032 | 798 | 0.061585 | 477 | 0.123169 |
+| P7 | f minus 2f | 0.001052 | 637 | 0.503817 | 637 | 1.000000 |
+| P8 | f minus 2f | 0.016782 | 896 | **0.005934** | 379 | **0.011867** |
+| Pz | f minus 2f | 0.007284 | 734 | 0.178594 | 541 | 0.357187 |
+| T7 | f minus 2f | 0.014470 | 868 | **0.012750** | 407 | **0.025500** |
+| T8 | f minus 2f | 0.015735 | 876 | **0.010333** | 399 | **0.020666** |
+| **All EEG channels** | **f minus 2f** | **0.009592** | **859** | **0.016027** | **416** | **0.032053** |
+
+![One-sided p-values by EEG channel for regular-line poetic versus doubled frequency ITPC](results/frequency_comparison/chosen_2-1_regular_f_vs_2f_one_sided_p.png)
+
+### Irregular lines: poetic frequency minus doubled poetic frequency
+
+The one-sided test uses the hypothesis `f > 2f`; the two-sided test evaluates
+any difference between the frequencies.
+
+| Channel | Freq. | Irregular f minus Irregular 2f | W (one-sided) | p (one-sided) | W (two-sided) | p (two-sided) |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| C3 | f minus 2f | -0.003102 | 582 | 0.704091 | 582 | 0.598463 |
+| C4 | f minus 2f | 0.002494 | 701 | 0.273133 | 574 | 0.546265 |
+| F3 | f minus 2f | 0.004610 | 748 | 0.145518 | 527 | 0.291035 |
+| F4 | f minus 2f | 0.005916 | 751 | 0.138994 | 524 | 0.277988 |
+| F7 | f minus 2f | 0.000896 | 644 | 0.477112 | 631 | 0.954225 |
+| F8 | f minus 2f | -0.000265 | 643 | 0.480924 | 632 | 0.961848 |
+| Fp1 | f minus 2f | 0.003077 | 724 | 0.204852 | 551 | 0.409704 |
+| Fp2 | f minus 2f | 0.002770 | 696 | 0.289315 | 579 | 0.578629 |
+| Fz | f minus 2f | 0.010584 | 828 | **0.033166** | 447 | 0.066332 |
+| O1 | f minus 2f | 0.006643 | 805 | 0.053688 | 470 | 0.107376 |
+| O2 | f minus 2f | 0.009330 | 839 | **0.025893** | 436 | 0.051786 |
+| P3 | f minus 2f | 0.005599 | 777 | 0.090627 | 498 | 0.181255 |
+| P4 | f minus 2f | 0.007902 | 847 | **0.021472** | 428 | **0.042944** |
+| P7 | f minus 2f | 0.004712 | 780 | 0.085957 | 495 | 0.171914 |
+| P8 | f minus 2f | 0.007645 | 800 | 0.059243 | 475 | 0.118485 |
+| Pz | f minus 2f | 0.009403 | 823 | **0.036978** | 452 | 0.073956 |
+| T7 | f minus 2f | 0.002086 | 707 | 0.254315 | 568 | 0.508630 |
+| T8 | f minus 2f | 0.004527 | 736 | 0.173603 | 539 | 0.347207 |
+| **All EEG channels** | **f minus 2f** | **0.004713** | **777** | **0.090627** | **498** | **0.181255** |
