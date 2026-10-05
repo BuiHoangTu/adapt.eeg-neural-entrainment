@@ -245,3 +245,136 @@ any difference between the frequencies.
 | T7 | f minus 2f | 0.002086 | 707 | 0.254315 | 568 | 0.508630 |
 | T8 | f minus 2f | 0.004527 | 736 | 0.173603 | 539 | 0.347207 |
 | **All EEG channels** | **f minus 2f** | **0.004713** | **777** | **0.090627** | **498** | **0.181255** |
+
+### Exploratory language-group analysis at pooled-effect channels
+
+The following channels were selected from the pooled channel analyses above,
+then examined separately by language group. This is an exploratory follow-up:
+the displayed within-group p-values are uncorrected and must not be treated as
+independent confirmation of the pooled effects.
+
+#### Regular minus irregular
+
+These five channels had pooled one-sided `regular > irregular` p-values below
+0.05. The same one-sided hypothesis is tested within each group.
+
+| Channel | Bilingual Δ | Bilingual W | Bilingual p | Monolingual Δ | Monolingual W | Monolingual p |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| F7 | 0.006443 | 239 | 0.212376 | 0.011725 | 181 | **0.039714** |
+| F8 | 0.011692 | 248 | 0.158048 | 0.030821 | 218 | **0.000959** |
+| P8 | 0.007985 | 250 | 0.147299 | 0.013556 | 174 | 0.064440 |
+| T7 | 0.018573 | 276 | **0.049640** | 0.015688 | 195 | **0.012569** |
+| T8 | 0.006810 | 222 | 0.339089 | 0.025111 | 186 | **0.027123** |
+
+#### Regular lines: poetic frequency minus doubled poetic frequency
+
+These six channels had pooled two-sided `f` versus `2f` p-values below 0.05.
+The group analysis therefore reports the matching two-sided tests.
+
+| Channel | Bilingual Δ | Bilingual W | Bilingual p (two-sided) | Monolingual Δ | Monolingual W | Monolingual p (two-sided) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| F8 | 0.007773 | 179 | 0.597922 | 0.026333 | 44 | **0.005929** |
+| Fz | 0.008533 | 156 | 0.294598 | 0.019571 | 69 | 0.063419 |
+| O2 | 0.012640 | 143 | 0.178234 | 0.015849 | 72 | 0.079427 |
+| P8 | 0.014516 | 139 | 0.150235 | 0.019667 | 60 | **0.030118** |
+| T7 | 0.013834 | 143 | 0.178234 | 0.015280 | 76 | 0.105453 |
+| T8 | 0.010413 | 158 | 0.316096 | 0.022509 | 45 | **0.006649** |
+
+## ITPC differences by language group
+
+These within-group paired tests use the chosen cycle-aligned `2–1`
+configuration and aggregate all eligible poems and lines within participant.
+The bilingual group has 28 participants and the monolingual group has 22.
+They do not test the difference between groups.
+Channel-wise p-values are uncorrected for multiple comparisons.
+
+### Regular minus irregular at poetic frequency
+
+The one-sided Wilcoxon test evaluates the planned hypothesis that regular ITPC
+is greater than irregular ITPC.
+
+| Group | n | ITPC difference | Wilcoxon W | Wilcoxon p (one-sided) |
+| --- | ---: | ---: | ---: | ---: |
+| Bilingual | 28 | 0.004475 | 240 | 0.205867 |
+| Monolingual | 22 | 0.012249 | 193 | **0.015059** |
+
+| Channel | Bilingual Δ | Bilingual W | Bilingual p | Monolingual Δ | Monolingual W | Monolingual p |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| C3 | 0.008894 | 260 | 0.100784 | 0.005742 | 150 | 0.231389 |
+| C4 | 0.001273 | 215 | 0.398281 | 0.018293 | 179 | **0.045866** |
+| F3 | -0.006090 | 168 | 0.787624 | 0.014284 | 157 | 0.168474 |
+| F4 | 0.005553 | 213 | 0.415687 | 0.020504 | 178 | **0.049205** |
+| F7 | 0.006443 | 239 | 0.212376 | 0.011725 | 181 | **0.039714** |
+| F8 | 0.011692 | 248 | 0.158048 | 0.030821 | 218 | **0.000959** |
+| Fp1 | 0.002245 | 220 | 0.355683 | 0.014545 | 175 | 0.060339 |
+| Fp2 | -0.003105 | 177 | 0.724063 | 0.012961 | 161 | 0.137813 |
+| Fz | -0.006215 | 165 | 0.806803 | 0.015729 | 177 | 0.052727 |
+| O1 | 0.008561 | 234 | 0.246617 | 0.005110 | 146 | 0.272295 |
+| O2 | 0.005707 | 226 | 0.306819 | 0.012672 | 180 | **0.042705** |
+| P3 | 0.004363 | 240 | 0.205867 | -0.003669 | 115 | 0.648808 |
+| P4 | 0.004111 | 231 | 0.268454 | 0.002418 | 164 | 0.117381 |
+| P7 | 0.002311 | 217 | 0.381070 | 0.002209 | 131 | 0.449368 |
+| P8 | 0.007985 | 250 | 0.147299 | 0.013556 | 174 | 0.064440 |
+| Pz | 0.001431 | 209 | 0.450950 | 0.002781 | 136 | 0.387264 |
+| T7 | 0.018573 | 276 | **0.049640** | 0.015688 | 195 | **0.012569** |
+| T8 | 0.006810 | 222 | 0.339089 | 0.025111 | 186 | **0.027123** |
+| **All EEG channels** | **0.004475** | **240** | **0.205867** | **0.012249** | **193** | **0.015059** |
+
+![Regular-minus-irregular ITPC difference by language group](results/frequency_comparison/chosen_2-1_regular_minus_irregular_by_language_group.png)
+
+### Regular lines: poetic frequency minus doubled poetic frequency
+
+The one-sided test evaluates `f > 2f`; the two-sided test evaluates any
+difference between the frequencies.
+
+In the table, `Bi` means bilingual, `Mono` means monolingual, and subscripts
+1 and 2 indicate one-sided and two-sided Wilcoxon results, respectively.
+
+| Group | n | ITPC difference | W (one-sided) | p (one-sided) | W (two-sided) | p (two-sided) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Bilingual | 28 | 0.006258 | 244 | 0.181001 | 162 | 0.362001 |
+| Monolingual | 22 | 0.013836 | 194 | **0.013768** | 59 | **0.027535** |
+
+| Channel | Bi Δ | Bi W₁ | Bi p₁ | Bi W₂ | Bi p₂ | Mono Δ | Mono W₁ | Mono p₁ | Mono W₂ | Mono p₂ |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| C3 | -0.002377 | 197 | 0.557912 | 197 | 0.901900 | 0.000283 | 127 | 0.500000 | 126 | 1.000000 |
+| C4 | 0.002996 | 232 | 0.261072 | 174 | 0.522144 | 0.019255 | 185 | **0.029345** | 68 | 0.058690 |
+| F3 | 0.004178 | 224 | 0.322793 | 182 | 0.645585 | 0.009956 | 163 | 0.123950 | 90 | 0.247899 |
+| F4 | 0.006881 | 225 | 0.314764 | 181 | 0.629528 | 0.026861 | 196 | **0.011458** | 57 | **0.022916** |
+| F7 | 0.006410 | 224 | 0.322793 | 182 | 0.645585 | 0.008564 | 164 | 0.117381 | 89 | 0.234762 |
+| F8 | 0.007773 | 227 | 0.298961 | 179 | 0.597922 | 0.026333 | 209 | **0.002964** | 44 | **0.005929** |
+| Fp1 | 0.005215 | 217 | 0.381070 | 189 | 0.762139 | 0.010869 | 153 | 0.203017 | 100 | 0.406033 |
+| Fp2 | 0.003071 | 210 | 0.442088 | 196 | 0.884176 | 0.010038 | 154 | 0.194022 | 99 | 0.388045 |
+| Fz | 0.008533 | 250 | 0.147299 | 156 | 0.294598 | 0.019571 | 184 | **0.031710** | 69 | 0.063419 |
+| O1 | 0.005930 | 232 | 0.261072 | 174 | 0.522144 | 0.013151 | 168 | 0.093488 | 85 | 0.186976 |
+| O2 | 0.012640 | 263 | 0.089117 | 143 | 0.178234 | 0.015849 | 181 | **0.039714** | 72 | 0.079427 |
+| P3 | 0.003834 | 223 | 0.330902 | 183 | 0.661805 | 0.002590 | 137 | 0.375119 | 116 | 0.750238 |
+| P4 | 0.007263 | 247 | 0.163605 | 159 | 0.327210 | 0.011283 | 163 | 0.123950 | 90 | 0.247899 |
+| P7 | 0.000648 | 206 | 0.477661 | 200 | 0.955322 | 0.001566 | 118 | 0.612736 | 118 | 0.799034 |
+| P8 | 0.014516 | 267 | 0.075118 | 139 | 0.150235 | 0.019667 | 193 | **0.015059** | 60 | **0.030118** |
+| Pz | 0.000892 | 205 | 0.486592 | 201 | 0.973185 | 0.015420 | 165 | 0.111054 | 88 | 0.222107 |
+| T7 | 0.013834 | 263 | 0.089117 | 143 | 0.178234 | 0.015280 | 177 | 0.052727 | 76 | 0.105453 |
+| T8 | 0.010413 | 248 | 0.158048 | 158 | 0.316096 | 0.022509 | 208 | **0.003325** | 45 | **0.006649** |
+| **All EEG channels** | **0.006258** | **244** | **0.181001** | **162** | **0.362001** | **0.013836** | **194** | **0.013768** | **59** | **0.027535** |
+
+![Regular-line poetic-minus-doubled-frequency ITPC difference by language group](results/frequency_comparison/chosen_2-1_regular_f_vs_2f_by_language_group.png)
+
+## Continuous line regularity (CV) and ITPC
+
+This analysis does not use the regular, ambiguous, or irregular categories.
+Each line has equal weight: ITPC is first averaged across participants and EEG
+channels for that poem-line, then correlated with line CV. ITPC uses the chosen
+cycle-aligned `2–1` configuration at each poem's implied stress frequency.
+Five lines without a valid CV were excluded. Poem 3 line 105 has a valid CV but
+is excluded because its duration supports only one window; debiased ITPC
+requires at least two windows.
+
+The primary test is a two-sided Spearman rank correlation between line CV and
+line-mean ITPC. A negative correlation supports the hypothesis that lower CV
+(more regular timing) is associated with higher ITPC.
+
+| Analysis | Spearman rho | Two-sided p | Lines |
+| --- | ---: | ---: | ---: |
+| CV versus line-mean ITPC | -0.103825 | **0.027994** | 448 |
+
+![Line CV versus ITPC](results/cv_itpc/cv_vs_itpc.png)
