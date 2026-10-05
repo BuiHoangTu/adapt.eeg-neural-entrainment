@@ -27,6 +27,7 @@ from adapt_eeg.poem_rhythm import (
     select_iambic_lines,
 )
 
+# Primary analysis configuration: cycle-aligned 2-cycle windows, 1-cycle slide.
 CYCLES_PER_WINDOW = 2.0
 SHIFT_CYCLES = 1.0
 MIN_WINDOWS = 2
